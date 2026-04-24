@@ -147,6 +147,8 @@ body {
 
 input[type="text"],
 input[type="number"],
+input[type="datetime-local"],
+textarea,
 select {
     display: block;
     width: 100%;
@@ -163,8 +165,18 @@ select {
     transition: border-color 0.2s;
 }
 
-input:focus, select:focus {
+input:focus, select:focus, textarea:focus {
     border-color: var(--primary) !important;
+}
+
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) sepia(1) saturate(5) hue-rotate(90deg);
+    opacity: 0.8;
+    cursor: pointer;
+}
+input[type="datetime-local"] {
+    text-transform: uppercase;
+    font-size: 13px !important;
 }
 
 .ghost-input {

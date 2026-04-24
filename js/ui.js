@@ -667,8 +667,8 @@ const app = {
         document.getElementById('score-court-label').innerText = m.court.toUpperCase();
         document.getElementById('manual-score-1').value = m.score1 !== null ? m.score1 : '';
         document.getElementById('manual-score-2').value = m.score2 !== null ? m.score2 : '';
-        this.startTimer();
         this.renderScoreboardPanel();
+        this.startTimer();
         this.showView('score');
     },
 
@@ -679,8 +679,7 @@ const app = {
         const limitSeconds = limitMinutes * 60;
         this.timerAlertsPlayed = { min3: false, min1: false, end: false };
 
-        this.matchTimer = setInterval(() => {
-            this.matchSeconds++;
+        const updateClock = () => {
             const el = document.getElementById('match-timer');
             if (!el) return;
             
@@ -692,15 +691,18 @@ const app = {
 
                 if (remaining <= 180 && !this.timerAlertsPlayed.min3) {
                     this.timerAlertsPlayed.min3 = true;
-                    this.playTickAlert(1); el.style.color = '#ffd700';
+                    if (this.matchSeconds > 0) this.playTickAlert(1);
+                    el.style.color = '#ffd700';
                 }
                 if (remaining <= 60 && !this.timerAlertsPlayed.min1) {
                     this.timerAlertsPlayed.min1 = true;
-                    this.playTickAlert(2); el.style.color = '#ff9800';
+                    if (this.matchSeconds > 0) this.playTickAlert(2);
+                    el.style.color = '#ff9800';
                 }
                 if (remaining === 0 && !this.timerAlertsPlayed.end) {
                     this.timerAlertsPlayed.end = true;
-                    this.playTimeUpAlert(); el.style.color = '#ff5252';
+                    if (this.matchSeconds > 0) this.playTimeUpAlert();
+                    el.style.color = '#ff5252';
                 }
             } else {
                 const over = this.matchSeconds - limitSeconds;
@@ -709,6 +711,12 @@ const app = {
                 el.innerText = `+${om}:${os}`;
                 el.style.color = '#ff5252';
             }
+        };
+
+        updateClock(); // mostrar tiempo inicial inmediatamente
+        this.matchTimer = setInterval(() => {
+            this.matchSeconds++;
+            updateClock();
         }, 1000);
     },
 
