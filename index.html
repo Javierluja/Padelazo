@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Padelazo | Premium Padel Experience</title>
+    <meta name="description" content="La aplicación definitiva para organizar tus torneos de pádel con amigos. Americanos, Rey de la Cancha y más.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/index.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="animate-fade-in">
+            <h1 class="title-gradient" style="font-size: 2.5rem; text-align: center;">PADELAZO</h1>
+        </header>
+
+        <!-- View: Home -->
+        <section id="view-home" class="view animate-fade-in">
+            <div class="card">
+                <h2 style="margin-bottom: 20px;">Nuevo Torneo</h2>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <button class="btn btn-primary" onclick="app.showSetup('americano')">
+                        <span>Americano</span>
+                        <span style="font-size: 0.8rem; font-weight: 400; opacity: 0.8;">Todos con todos</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="app.showSetup('rey')">
+                        <span>Rey de la Cancha</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="app.showSetup('robin')">
+                        <span>Round Robin</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- View: Setup -->
+        <section id="view-setup" class="view hidden animate-fade-in">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 id="setup-title">Configuración</h2>
+                    <button class="btn btn-secondary" style="padding: 8px 12px; font-size: 14px;" onclick="app.showView('home')">Atrás</button>
+                </div>
+                
+                <div class="input-group" style="margin-bottom: 20px;">
+                    <label>Número de Canchas</label>
+                    <input type="number" id="input-courts" value="1" min="1" onchange="app.updateCourtInputs()">
+                </div>
+                <div id="court-names-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                    <!-- Court names will be injected here -->
+                </div>
+
+                <div class="input-group">
+                    <label>Jugadores</label>
+                    <div id="players-list" style="margin-top: 10px;">
+                        <!-- Player inputs will be injected here -->
+                    </div>
+                    <button class="btn btn-secondary" onclick="app.addPlayerRow()" style="margin-top: 10px; border-style: dashed;">+ Añadir Jugador</button>
+                </div>
+
+                <button class="btn btn-primary" style="margin-top: 30px; width: 100%;" onclick="app.startTournament()">Empezar Padelazo</button>
+            </div>
+        </section>
+
+        <!-- View: Dashboard -->
+        <section id="view-dashboard" class="view hidden animate-fade-in">
+            <div class="card" style="margin-bottom: 16px;">
+                <h2 style="margin-bottom: 16px;">Leaderboard</h2>
+                <div id="leaderboard-content">
+                    <!-- Leaderboard injected here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 style="margin-bottom: 16px;">Partidos de la Ronda</h2>
+                <div id="matches-content" style="display: flex; flex-direction: column; gap: 12px;">
+                    <!-- Active matches injected here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- View: Score Entry -->
+        <section id="view-score" class="view hidden animate-fade-in">
+            <div class="card">
+                <h2 style="margin-bottom: 24px;">Registrar Resultado</h2>
+                <div id="score-entry-match" style="margin-bottom: 30px;">
+                    <!-- Match players display -->
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 20px;">
+                    <div class="input-group" style="flex: 1; text-align: center;">
+                        <label id="label-team-1">Pareja 1</label>
+                        <input type="number" id="score-team-1" style="font-size: 32px; height: 80px; text-align: center;" placeholder="0">
+                    </div>
+                    <div style="font-weight: 800; font-size: 24px; margin-top: 20px; color: var(--primary);">VS</div>
+                    <div class="input-group" style="flex: 1; text-align: center;">
+                        <label id="label-team-2">Pareja 2</label>
+                        <input type="number" id="score-team-2" style="font-size: 32px; height: 80px; text-align: center;" placeholder="0">
+                    </div>
+                </div>
+
+                <div style="margin-top: 40px; display: flex; gap: 12px;">
+                    <button class="btn btn-secondary" style="flex: 1;" onclick="app.showView('dashboard')">Cancelar</button>
+                    <button class="btn btn-primary" style="flex: 2;" onclick="app.submitScore()">Guardar Resultado</button>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/storage.js"></script>
+    <script src="js/engine.js"></script>
+    <script src="js/ui.js"></script>
+</body>
+</html>
