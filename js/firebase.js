@@ -45,11 +45,29 @@ const FirebaseDB = {
             name: tournamentConfig.name || 'Torneo Padelazo',
             type: tournamentConfig.type || 'americano',
             scoreType: tournamentConfig.scoreType || 'normal',
+            location: tournamentConfig.location || '',
+            datetime: tournamentConfig.datetime || '',
+            rules: tournamentConfig.rules || '',
+            matchTime: tournamentConfig.matchTime || 15,
             createdAt: Date.now(),
             status: 'open',
             players: {}
         });
         return code;
+    },
+
+    // Organizador: actualizar sala
+    async updateSession(code, tournamentConfig) {
+        if (!this.init()) throw new Error('Firebase no disponible');
+        await this.db.ref(`sessions/${code}`).update({
+            name: tournamentConfig.name || 'Torneo Padelazo',
+            type: tournamentConfig.type || 'americano',
+            scoreType: tournamentConfig.scoreType || 'normal',
+            location: tournamentConfig.location || '',
+            datetime: tournamentConfig.datetime || '',
+            rules: tournamentConfig.rules || '',
+            matchTime: tournamentConfig.matchTime || 15
+        });
     },
 
     // Organizador: escuchar cambios en tiempo real

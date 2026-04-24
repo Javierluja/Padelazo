@@ -241,18 +241,34 @@ const app = {
         const scoreType = document.getElementById('input-score-type').value;
         const courts = parseInt(document.getElementById('input-courts')?.value) || 1;
         const courtNames = Array.from(document.querySelectorAll('.court-name-input')).map((i, idx) => i.value || `PISTA ${idx + 1}`);
+        const locationStr = document.getElementById('input-location')?.value || '';
+        const datetime = document.getElementById('input-datetime')?.value || '';
+        const rules = document.getElementById('input-rules')?.value || '';
+        const matchTime = parseInt(document.getElementById('input-match-time')?.value) || 15;
+
         const options = {
             americanoType: document.getElementById('input-americano-type')?.value || 'individual',
-            scoreType: scoreType
+            scoreType: scoreType,
+            location: locationStr,
+            datetime: datetime,
+            rules: rules,
+            matchTime: matchTime
         };
 
         const localPlayers = this.collectPlayersFromForm();
 
         const btn = document.getElementById('btn-invite');
-        if (btn) btn.innerText = 'Creando sala...';
+        if (btn) btn.innerText = 'Guardando sala...';
         try {
-            const code = await FirebaseDB.createSession({ name, type, scoreType });
-            this.inviteCode = code;
+            let code = this.inviteCode;
+            if (code && this.state.activeSession?.code === code) {
+                // Actualizar sesión existente
+                await FirebaseDB.updateSession(code, { name, type, scoreType, location: locationStr, datetime, rules, matchTime });
+            } else {
+                // Crear nueva sesión
+                code = await FirebaseDB.createSession({ name, type, scoreType, location: locationStr, datetime, rules, matchTime });
+                this.inviteCode = code;
+            }
 
             this.state.activeSession = {
                 code, name, type, scoreType, courts, courtNames, options,
@@ -291,6 +307,19 @@ const app = {
     renderInviteRoom(code, name) {
         document.getElementById('invite-code-display').innerText = code;
         document.getElementById('invite-tournament-name').innerText = name;
+        
+        const s = this.state.activeSession;
+        if (s) {
+            let info = [];
+            if (s.options?.location) info.push(`📍 ${s.options.location}`);
+            if (s.options?.datetime) {
+                const date = new Date(s.options.datetime);
+                if (!isNaN(date.getTime())) info.push(`🗓️ ${date.toLocaleDateString()} a las ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`);
+            }
+            if (s.options?.matchTime) info.push(`⏱️ ${s.options.matchTime} min/partido`);
+            document.getElementById('invite-tournament-info').innerHTML = info.join('<br>') || '<em>(Sin detalles)</em>';
+        }
+
         const url = `${location.origin}${location.pathname}?join=${code}`;
         document.getElementById('invite-url').innerText = url;
         const qc = document.getElementById('qr-container');
@@ -300,6 +329,43 @@ const app = {
         } else {
             qc.innerHTML = `<div style="padding:30px;border:2px solid var(--primary);border-radius:16px;color:var(--text-dim);font-size:12px;">Link:<br><strong style="color:var(--primary);">${url}</strong></div>`;
         }
+    },
+
+    editInviteSettingsModal() {
+        const s = this.state.activeSession;
+        if (!s) return;
+        this.showSetup(s.type);
+        document.getElementById('input-tournament-name').value = s.name;
+        
+        const courtsInput = document.getElementById('input-courts');
+        if (courtsInput) { courtsInput.value = s.courts; this.updateCourtInputs(); }
+        
+        s.courtNames.forEach((n, i) => {
+            const inputs = document.querySelectorAll('.court-name-input');
+            if (inputs[i]) inputs[i].value = n;
+        });
+
+        const scoreType = document.getElementById('input-score-type');
+        if (scoreType) scoreType.value = s.scoreType;
+        
+        const amType = document.getElementById('input-americano-type');
+        if (amType && s.options?.americanoType) amType.value = s.options.americanoType;
+
+        const loc = document.getElementById('input-location');
+        if (loc) loc.value = s.options?.location || '';
+        
+        const dtime = document.getElementById('input-datetime');
+        if (dtime) dtime.value = s.options?.datetime || '';
+        
+        const mtime = document.getElementById('input-match-time');
+        if (mtime) mtime.value = s.options?.matchTime || 15;
+        
+        const rules = document.getElementById('input-rules');
+        if (rules) rules.value = s.options?.rules || '';
+        
+        document.getElementById('setup-title').innerText = "Editar Torneo";
+        const btn = document.getElementById('btn-invite');
+        if (btn) btn.innerText = "GUARDAR CAMBIOS Y VOLVER A LA SALA";
     },
 
     updateInvitePlayerList(players) {
@@ -376,6 +442,31 @@ const app = {
             if (!session) { nameEl.innerText = '❌ Código no encontrado'; document.getElementById('join-form')?.classList.add('hidden'); return; }
             nameEl.innerText = session.name;
         }
+
+        if (session) {
+            const locEl = document.getElementById('join-location');
+            if (locEl) locEl.innerText = session.location || 'No especificada';
+            
+            const dtEl = document.getElementById('join-datetime');
+            if (dtEl) {
+                if (session.datetime) {
+                    const d = new Date(session.datetime);
+                    dtEl.innerText = !isNaN(d.getTime()) ? `${d.toLocaleDateString()} a las ${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : 'No especificada';
+                } else dtEl.innerText = 'No especificada';
+            }
+
+            const tmEl = document.getElementById('join-match-time');
+            if (tmEl) tmEl.innerText = session.matchTime ? `${session.matchTime} Minutos` : '15 Minutos';
+            
+            const rEl = document.getElementById('join-rules');
+            if (rEl) {
+                if (session.rules) {
+                    rEl.innerText = session.rules;
+                    rEl.style.display = 'block';
+                } else rEl.style.display = 'none';
+            }
+        }
+
         const disp = document.getElementById('join-code-display');
         if (disp) disp.innerText = code;
         window._joinCode = code;
@@ -584,15 +675,73 @@ const app = {
     startTimer() {
         this.stopTimer();
         this.matchSeconds = 0;
+        const limitMinutes = this.state.currentTournament?.options?.matchTime || 15;
+        const limitSeconds = limitMinutes * 60;
+        this.timerAlertsPlayed = { min3: false, min1: false, end: false };
+
         this.matchTimer = setInterval(() => {
             this.matchSeconds++;
             const el = document.getElementById('match-timer');
             if (!el) return;
-            const m = String(Math.floor(this.matchSeconds / 60)).padStart(2, '0');
-            const s = String(this.matchSeconds % 60).padStart(2, '0');
-            el.innerText = `${m}:${s}`;
-            el.style.color = this.matchSeconds >= 900 ? '#ff5252' : this.matchSeconds >= 600 ? '#ffd700' : 'var(--text-dim)';
+            
+            const remaining = limitSeconds - this.matchSeconds;
+            if (remaining >= 0) {
+                const rm = String(Math.floor(remaining / 60)).padStart(2, '0');
+                const rs = String(remaining % 60).padStart(2, '0');
+                el.innerText = `${rm}:${rs}`;
+
+                if (remaining <= 180 && !this.timerAlertsPlayed.min3) {
+                    this.timerAlertsPlayed.min3 = true;
+                    this.playTickAlert(1); el.style.color = '#ffd700';
+                }
+                if (remaining <= 60 && !this.timerAlertsPlayed.min1) {
+                    this.timerAlertsPlayed.min1 = true;
+                    this.playTickAlert(2); el.style.color = '#ff9800';
+                }
+                if (remaining === 0 && !this.timerAlertsPlayed.end) {
+                    this.timerAlertsPlayed.end = true;
+                    this.playTimeUpAlert(); el.style.color = '#ff5252';
+                }
+            } else {
+                const over = this.matchSeconds - limitSeconds;
+                const om = String(Math.floor(over / 60)).padStart(2, '0');
+                const os = String(over % 60).padStart(2, '0');
+                el.innerText = `+${om}:${os}`;
+                el.style.color = '#ff5252';
+            }
         }, 1000);
+    },
+
+    playTickAlert(beeps) {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const playBeep = (time) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(800, time);
+                gain.gain.setValueAtTime(1, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.3);
+                osc.start(time); osc.stop(time + 0.3);
+            };
+            for (let i = 0; i < beeps; i++) playBeep(ctx.currentTime + (i * 0.4));
+        } catch(e) {}
+    },
+
+    playTimeUpAlert() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const playBeep = (time) => {
+                const osc = ctx.createOscillator(); osc.type = 'square';
+                const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(440, time);
+                gain.gain.setValueAtTime(1, time);
+                gain.gain.setValueAtTime(0.01, time + 0.4);
+                osc.start(time); osc.stop(time + 0.4);
+            };
+            for (let i = 0; i < 4; i++) playBeep(ctx.currentTime + (i * 0.5));
+        } catch(e) {}
     },
 
     stopTimer() {
