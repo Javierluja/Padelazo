@@ -153,7 +153,7 @@
     <section id="view-invite" class="view hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
             <h2 style="font-size:18px;">Sala de Inscripción</h2>
-            <button onclick="app.showView('setup')" class="btn-ghost">← VOLVER</button>
+            <button onclick="app.showView('home')" class="btn-ghost">← INICIO</button>
         </div>
 
         <div class="card" style="text-align:center;margin-bottom:20px;">
@@ -176,17 +176,18 @@
             <div id="invite-players-list"></div>
         </div>
 
-        <button id="btn-start-invite" class="btn-primary" onclick="app.startFromInvite()" disabled>
-            INICIAR TORNEO CON ESTOS JUGADORES
+        <button class="btn-outline" style="border-style:dashed;color:var(--text-dim);margin-top:12px;width:100%;margin-bottom:20px;" onclick="app.addManualToRoom()">
+            + AÑADIR JUGADOR MANUAL
         </button>
-        <button class="btn-outline" style="margin-top:12px;" onclick="app.startTournament()">
-            Iniciar Solo con Jugadores Manuales
+
+        <button id="btn-start-invite" class="btn-primary" onclick="app.startSessionTournament()" disabled>
+            INICIAR TORNEO AHORA (Mín. 4)
         </button>
     </section>
 
     <!-- ===== JOIN VIEW (El jugador llega desde el link) ===== -->
     <section id="view-join" class="view hidden" style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:30px 20px;">
-        <div style="font-size:60px;margin-bottom:16px;">🎾</div>
+        <div id="join-padel-icon" style="margin-bottom:16px;"></div>
         <h1 style="font-size:2rem;font-weight:900;color:var(--primary);margin-bottom:4px;">PADELAZO</h1>
         <p style="font-size:12px;color:var(--text-dim);margin-bottom:30px;">Código: <strong id="join-code-display" style="color:var(--primary);">–</strong></p>
         <p style="font-size:14px;color:var(--text-dim);margin-bottom:4px;">Te invitaron a</p>

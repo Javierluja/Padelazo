@@ -90,9 +90,22 @@ const app = {
                         <div>
                             <p class="label-tag" style="margin-bottom:4px;">TORNEO EN CURSO</p>
                             <h3 style="font-size:22px;margin:0;">${t.name}</h3>
-                            <p style="font-size:12px;color:var(--text-dim);margin-top:4px;">${pending} partidos pendientes</p>
+                            <p style="font-size:12px;color:var(--text-dim);margin-top:4px;">${t.players.length} Jugadores • ${pending} pendientes</p>
                         </div>
                         <div>${this.padelSVG(44)}</div>
+                    </div>
+                </div>`;
+        } else if (this.state.activeSession) {
+            const s = this.state.activeSession;
+            ac.innerHTML = `
+                <div class="card card-glow" style="margin-bottom:20px;border-color:var(--primary);" onclick="app.resumeInviteRoom()">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div style="flex:1;">
+                            <p class="label-tag" style="margin-bottom:4px;color:var(--primary);">⏳ INSCRIPCIONES ABIERTAS</p>
+                            <h3 style="font-size:20px;margin:0;line-height:1.2;margin-bottom:4px;">${s.name}</h3>
+                            <p style="font-size:12px;color:var(--text-dim);margin-top:4px;">Código de acceso: <b style="color:var(--primary);">${s.code}</b></p>
+                        </div>
+                        <div style="margin-left:12px;">${this.padelSVG(44, 'var(--primary)')}</div>
                     </div>
                 </div>`;
         } else { ac.innerHTML = ''; }
@@ -224,25 +237,55 @@ const app = {
     /* ===================== FIREBASE INVITE ===================== */
     async openInviteRoom() {
         const name = document.getElementById('input-tournament-name').value.trim() || 'Torneo Padelazo';
+        const type = this.state.mode || 'americano';
+        const scoreType = document.getElementById('input-score-type').value;
+        const courts = parseInt(document.getElementById('input-courts')?.value) || 1;
+        const courtNames = Array.from(document.querySelectorAll('.court-name-input')).map((i, idx) => i.value || `PISTA ${idx + 1}`);
+        const options = {
+            americanoType: document.getElementById('input-americano-type')?.value || 'individual',
+            scoreType: scoreType
+        };
+
+        const localPlayers = this.collectPlayersFromForm();
+
         const btn = document.getElementById('btn-invite');
         if (btn) btn.innerText = 'Creando sala...';
         try {
-            const code = await FirebaseDB.createSession({
-                name, type: this.state.mode || 'americano',
-                scoreType: document.getElementById('input-score-type').value
-            });
+            const code = await FirebaseDB.createSession({ name, type, scoreType });
             this.inviteCode = code;
-            this.renderInviteRoom(code, name);
-            this.showView('invite');
-            FirebaseDB.watchSession(code, (session) => {
-                if (!session) return;
-                this.updateInvitePlayerList(session.players ? Object.values(session.players) : []);
-            });
+
+            this.state.activeSession = {
+                code, name, type, scoreType, courts, courtNames, options,
+                localPlayers: localPlayers.map(p => ({ name: p.name, photo: p.photo }))
+            };
+            Storage.save(this.state);
+
+            this.resumeInviteRoom();
         } catch(e) {
             alert('Error Firebase. ¿Está activa la Realtime Database?\n\n' + e.message);
         } finally {
             if (btn) btn.innerText = '🔗 CONVOCAR JUGADORES EN LÍNEA';
         }
+    },
+
+    resumeInviteRoom() {
+        const s = this.state.activeSession;
+        if (!s) return;
+        this.inviteCode = s.code;
+        this.renderInviteRoom(s.code, s.name);
+        this.showView('invite');
+
+        if (this.inviteUnsubscribe) {
+            FirebaseDB.stopWatching(this.inviteCode);
+        }
+
+        FirebaseDB.watchSession(this.inviteCode, (session) => {
+            if (!session) return;
+            const firebasePlayers = session.players ? Object.values(session.players) : [];
+            const locals = this.state.activeSession?.localPlayers || [];
+            this.currentInvitePlayers = [...locals, ...firebasePlayers];
+            this.updateInvitePlayerList(this.currentInvitePlayers);
+        });
     },
 
     renderInviteRoom(code, name) {
@@ -276,25 +319,57 @@ const app = {
             </div>`).join('');
     },
 
-    async startFromInvite() {
-        const session = await FirebaseDB.getSession(this.inviteCode);
-        if (!session) return alert('Error obteniendo datos.');
-        const firebasePlayers = session.players ? Object.values(session.players) : [];
-        const localPlayers = this.collectPlayersFromForm();
-        const allPlayers = [...localPlayers, ...firebasePlayers].map((p, i) => ({
-            ...p, id: i, score: 0, wins: 0, matchesPlayed: 0,
-            pointsAgainst: 0, totalSecondsOnCourt: 0, currentStreak: 0, bestStreak: 0
-        }));
-        if (allPlayers.length < 4) return alert('¡Mínimo 4 jugadores!');
+    addManualToRoom() {
+        const pName = prompt('Nombre del jugador manual:');
+        if (!pName || !pName.trim()) return;
+        const s = this.state.activeSession;
+        if (!s) return;
+        if (!s.localPlayers) s.localPlayers = [];
+        s.localPlayers.push({ name: pName.trim(), photo: null });
+        Storage.save(this.state);
+        this.resumeInviteRoom(); // Forzar actualización de UI local + firebase
+    },
+
+    async startSessionTournament() {
+        const s = this.state.activeSession;
+        if (!s || this.currentInvitePlayers.length < 4) return alert('¡Mínimo 4 jugadores!');
+
         await FirebaseDB.closeSession(this.inviteCode);
         FirebaseDB.stopWatching(this.inviteCode);
-        this.launchTournament(allPlayers, session.name || 'Torneo Padelazo');
+
+        // Preparar todos los players para el engine
+        const allPlayers = this.currentInvitePlayers.map((p, i) => ({
+            id: i, name: p.name, photo: p.photo || null,
+            score: 0, wins: 0, matchesPlayed: 0,
+            pointsAgainst: 0, totalSecondsOnCourt: 0, currentStreak: 0, bestStreak: 0
+        }));
+
+        let t;
+        if (s.type === 'americano') t = Engine.generateAmericano(allPlayers, s.courts, s.courtNames, s.options);
+        else if (s.type === 'robin') t = Engine.generateRobin(allPlayers, s.courts, s.courtNames, s.options);
+        else t = Engine.generateRey(allPlayers, s.courts, s.courtNames, s.options);
+        
+        t.name = s.name;
+        this.state.currentTournament = t;
+        this.state.currentTournament.matches = this.generateMatches();
+
+        // Limpiar sesión local porque ya es torneo vivo
+        this.state.activeSession = null;
+        this.inviteCode = null;
+        Storage.save(this.state);
+
+        this.renderDashboard();
+        this.showView('dashboard');
     },
 
     async showJoinView(code) {
         document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
         document.querySelector('.bottom-nav')?.classList.add('hidden');
         document.getElementById('view-join')?.classList.remove('hidden');
+        
+        const joinIcon = document.getElementById('join-padel-icon');
+        if (joinIcon) joinIcon.innerHTML = this.padelSVG(60);
+
         const session = await FirebaseDB.getSession(code);
         const nameEl = document.getElementById('join-tournament-name');
         if (nameEl) {

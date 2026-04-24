@@ -497,22 +497,24 @@ input:focus, select:focus {
 }
 
 .nav-item {
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 4px;
     color: var(--text-dim);
     font-size: 10px;
     font-weight: 800;
     text-transform: uppercase;
     cursor: pointer;
-    padding: 8px 20px;
+    padding: 8px 4px;
     border-radius: 20px;
     transition: 0.2s;
 }
 
 .nav-item.active { color: var(--primary); }
-.nav-icon { font-size: 22px; }
+.nav-icon { font-size: 22px; display: flex; align-items: center; justify-content: center; height: 26px; }
 
 /* MISC */
 .hidden { display: none !important; }
