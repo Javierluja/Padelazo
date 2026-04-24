@@ -1,4 +1,4 @@
-/* PADELAZO PREMIUM v4.0 */
+/* PADELAZO PREMIUM v4.1 */
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&display=swap');
 
 :root {
@@ -326,18 +326,42 @@ input:focus, select:focus {
 
 .score-btn {
     width: 100%;
-    aspect-ratio: 1;
-    border-radius: 20px;
+    border-radius: 16px;
     background: var(--bg-dark);
     border: 1px solid var(--glass-border);
     color: var(--text-main);
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 900;
     cursor: pointer;
     font-family: inherit;
     transition: all 0.1s;
+    padding: 18px 0;
 }
 .score-btn:active { background: var(--primary); color: #000; transform: scale(0.94); }
+
+/* Botón corregir -1 */
+.minus-btn {
+    background: rgba(255, 61, 0, 0.08) !important;
+    border-color: rgba(255, 61, 0, 0.3) !important;
+    color: var(--danger) !important;
+    font-size: 20px !important;
+}
+.minus-btn:active { background: var(--danger) !important; color: #fff !important; }
+
+/* Hint de jugadores necesarios */
+.players-needed-hint {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--primary);
+    background: var(--primary-glow);
+    border: 1px solid rgba(0, 230, 118, 0.3);
+    border-radius: 12px;
+    padding: 8px 14px;
+    margin-bottom: 12px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
 
 /* POINT LABEL TRACK (15 30 40 ORO) */
 .points-label-track {
