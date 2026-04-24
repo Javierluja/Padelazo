@@ -1,181 +1,199 @@
 const Engine = {
-    generateAmericano(players, courtCount, courtNames) {
-        // Generate list of all possible pairs
-        const pairs = [];
-        for (let i = 0; i < players.length; i++) {
-            for (let j = i + 1; j < players.length; j++) {
-                pairs.push([players[i].id, players[j].id]);
+    generateAmericano(players, courtCount, courtNames, options) {
+        const { americanoType, scoreType } = options;
+        
+        let allPossiblePairs = [];
+        if (americanoType === 'individual') {
+            for (let i = 0; i < players.length; i++) {
+                for (let j = i + 1; j < players.length; j++) {
+                    allPossiblePairs.push([players[i].id, players[j].id]);
+                }
+            }
+        } else {
+            // By Pairs: players come already grouped in pairs list
+            for (let i = 0; i < players.length; i += 2) {
+                if (i + 1 < players.length) {
+                    allPossiblePairs.push([players[i].id, players[i+1].id]);
+                }
             }
         }
 
-        // Shuffle pairs
-        this.shuffleArray(pairs);
+        this.shuffleArray(allPossiblePairs);
 
         return {
+            id: Date.now(),
+            name: `Torneo ${new Date().toLocaleDateString()}`,
             type: 'americano',
-            players: players.map(p => ({ ...p, score: 0 })),
+            americanoType,
+            scoreType,
+            players: players.map(p => ({ ...p, score: 0, wins: 0, matchesPlayed: 0 })),
             courtCount: parseInt(courtCount),
             courtNames: courtNames,
             matches: [],
-            allPossiblePairs: pairs,
-            usedPairIndices: new Set()
-        };
-    },
-
-    generateRobin(players, courtCount, courtNames) {
-        // Fixed teams logic (Round Robin by teams)
-        const teams = [];
-        for (let i = 0; i < players.length; i += 2) {
-            if (i + 1 < players.length) {
-                teams.push([players[i].id, players[i+1].id]);
-            }
-        }
-
-        const teamMatches = [];
-        for (let i = 0; i < teams.length; i++) {
-            for (let j = i + 1; j < teams.length; j++) {
-                teamMatches.push({
-                    t1: teams[i],
-                    t2: teams[j]
-                });
-            }
-        }
-        this.shuffleArray(teamMatches);
-
-        return {
-            type: 'robin',
-            players: players.map(p => ({ ...p, score: 0 })),
-            courtCount: parseInt(courtCount),
-            courtNames: courtNames,
-            matches: [],
-            allPossibleMatches: teamMatches,
+            allPossibleMatches: this.generateMatchesFromPairs(allPossiblePairs, americanoType),
             currentMatchIndex: 0
         };
     },
 
-    generateRey(players, courtCount, courtNames) {
-        return {
-            type: 'rey',
-            players: players.map(p => ({ ...p, score: 0 })),
-            courtCount: parseInt(courtCount),
-            courtNames: courtNames,
-            matches: []
-        };
+    generateMatchesFromPairs(pairs, type) {
+        const matches = [];
+        if (type === 'individual') {
+            return pairs; 
+        } else {
+            for (let i = 0; i < pairs.length; i++) {
+                for (let j = i + 1; j < pairs.length; j++) {
+                    matches.push({ team1: pairs[i], team2: pairs[j] });
+                }
+            }
+            this.shuffleArray(matches);
+            return matches;
+        }
     },
 
-    // Helper to generate the matches for a new round in Americano
     generateAmericanoNextRound(state) {
         const matches = [];
         const playersThisRound = new Set();
         const maxMatches = state.courtCount;
 
-        // Reset search if needed or keep trying to find unused pairs
-        let attempts = 0;
-        while (matches.length < maxMatches && attempts < 100) {
-            attempts++;
-            // Find a pair that hasn't played together yet (and players are free)
-            let pair1Idx = -1;
-            for (let i = 0; i < state.allPossiblePairs.length; i++) {
-                if (!state.usedPairIndices.has(i)) {
-                    const p = state.allPossiblePairs[i];
-                    if (!playersThisRound.has(p[0]) && !playersThisRound.has(p[1])) {
-                        pair1Idx = i;
-                        break;
+        if (state.americanoType === 'individual') {
+            let pair1Idx = 0;
+            while (matches.length < maxMatches && pair1Idx < state.allPossibleMatches.length) {
+                const pair1 = state.allPossibleMatches[pair1Idx];
+                if (!playersThisRound.has(pair1[0]) && !playersThisRound.has(pair1[1])) {
+                    let pair2Idx = pair1Idx + 1;
+                    while (pair2Idx < state.allPossibleMatches.length) {
+                        const pair2 = state.allPossibleMatches[pair2Idx];
+                        if (!playersThisRound.has(pair2[0]) && !playersThisRound.has(pair2[1])) {
+                            matches.push(this.createMatchObj(state, pair1, pair2, matches.length));
+                            playersThisRound.add(pair1[0]); playersThisRound.add(pair1[1]);
+                            playersThisRound.add(pair2[0]); playersThisRound.add(pair2[1]);
+                            state.allPossibleMatches.splice(pair2Idx, 1);
+                            state.allPossibleMatches.splice(pair1Idx, 1);
+                            state.allPossibleMatches.push(pair1, pair2);
+                            pair1Idx--;
+                            break;
+                        }
+                        pair2Idx++;
                     }
                 }
+                pair1Idx++;
             }
-
-            if (pair1Idx === -1) break; // No more pairs available for this round
-
-            const pair1 = state.allPossiblePairs[pair1Idx];
-            
-            // Find an opponent pair
-            let pair2Idx = -1;
-            for (let i = 0; i < state.allPossiblePairs.length; i++) {
-                if (i === pair1Idx) continue;
-                // Important: for Americano "everyone against everyone", 
-                // we should ideally pick a pair that hasn't played together either,
-                // but sometimes we might need to reuse a pair if we want to finish rounds.
-                // However, the rule "Everyone plays with everyone" refers to PARTNERS.
-                const p = state.allPossiblePairs[i];
-                if (!playersThisRound.has(p[0]) && !playersThisRound.has(p[1])) {
-                    // Check if they have played against each other? (Lower priority)
-                    pair2Idx = i;
-                    break;
+        } else {
+            let idx = state.currentMatchIndex;
+            while (matches.length < maxMatches && idx < state.allPossibleMatches.length) {
+                const m = state.allPossibleMatches[idx];
+                if (!playersThisRound.has(m.team1[0]) && !playersThisRound.has(m.team2[0])) {
+                    matches.push(this.createMatchObj(state, m.team1, m.team2, matches.length));
+                    playersThisRound.add(m.team1[0]); playersThisRound.add(m.team2[0]);
                 }
+                idx++;
             }
-
-            if (pair2Idx !== -1) {
-                const pair2 = state.allPossiblePairs[pair2Idx];
-                matches.push({
-                    id: Date.now() + matches.length,
-                    team1: pair1,
-                    team2: pair2,
-                    score1: null,
-                    score2: null,
-                    court: state.courtNames[matches.length] || `Cancha ${matches.length + 1}`
-                });
-                playersThisRound.add(pair1[0]); playersThisRound.add(pair1[1]);
-                playersThisRound.add(pair2[0]); playersThisRound.add(pair2[1]);
-                state.usedPairIndices.add(pair1Idx);
-                // Note: pair2 might be used as a pair again later if they haven't "officially" been marked as a starting pair?
-                // In Americano, each unique pair should ideally play together once.
-                state.usedPairIndices.add(pair2Idx);
-            } else {
-                // Could not find opponent pair for this pair1 in this round
-                // We'll skip pair1 for this round and try another
-                playersThisRound.delete(pair1[0]); playersThisRound.delete(pair1[1]); 
-                // Don't mark as used yet
-            }
+            state.currentMatchIndex = idx;
         }
-        
         return matches;
     },
 
-    generateReyNextRound(state) {
-        let newMatches = [];
-        const sorted = [...state.players].sort((a, b) => b.score - a.score);
-        
-        for (let i = 0; i < state.courtCount; i++) {
-            const pIdx = i * 4;
-            if (pIdx + 3 < sorted.length) {
-                newMatches.push({
-                    id: Date.now() + i,
-                    team1: [sorted[pIdx].id, sorted[pIdx+1].id],
-                    team2: [sorted[pIdx+2].id, sorted[pIdx+3].id],
-                    score1: null,
-                    score2: null,
-                    court: state.courtNames[i] || `Cancha ${i + 1}`
-                });
+    createMatchObj(state, t1, t2, index) {
+        return {
+            id: Date.now() + index,
+            team1: t1,
+            team2: t2,
+            score1: null,
+            score2: null,
+            points: { t1: 0, t2: 0, history: [] },
+            court: state.courtNames[index] || `Cancha ${index + 1}`
+        };
+    },
+
+    generateRobin(players, courtCount, courtNames, options) {
+        const teams = [];
+        for (let i = 0; i < players.length; i += 2) {
+            if (i + 1 < players.length) teams.push([players[i].id, players[i+1].id]);
+        }
+        const matches = [];
+        for (let i = 0; i < teams.length; i++) {
+            for (let j = i + 1; j < teams.length; j++) {
+                matches.push({ team1: teams[i], team2: teams[j] });
             }
         }
-        return newMatches;
+        this.shuffleArray(matches);
+        return {
+            id: Date.now(),
+            name: `Torneo Todos vs Todos ${new Date().toLocaleDateString()}`,
+            type: 'robin',
+            scoreType: options.scoreType,
+            players: players.map(p => ({ ...p, score: 0, wins: 0, matchesPlayed: 0 })),
+            courtCount: parseInt(courtCount),
+            courtNames: courtNames,
+            matches: [],
+            allPossibleMatches: matches,
+            currentMatchIndex: 0
+        };
     },
 
     generateRobinNextRound(state) {
         const matches = [];
         const teamsThisRound = new Set();
         let idx = state.currentMatchIndex;
-
         while (matches.length < state.courtCount && idx < state.allPossibleMatches.length) {
             const m = state.allPossibleMatches[idx];
-            // Check if any team member is already playing (though Robin is usually by team)
-            if (!teamsThisRound.has(m.t1.toString()) && !teamsThisRound.has(m.t2.toString())) {
-                matches.push({
-                    id: Date.now() + matches.length,
-                    team1: m.t1,
-                    team2: m.t2,
-                    score1: null,
-                    score2: null,
-                    court: state.courtNames[matches.length] || `Cancha ${matches.length + 1}`
-                });
-                teamsThisRound.add(m.t1.toString());
-                teamsThisRound.add(m.t2.toString());
+            if (!teamsThisRound.has(m.team1.toString()) && !teamsThisRound.has(m.team2.toString())) {
+                matches.push(this.createMatchObj(state, m.team1, m.team2, matches.length));
+                teamsThisRound.add(m.team1.toString());
+                teamsThisRound.add(m.team2.toString());
             }
             idx++;
         }
         state.currentMatchIndex = idx;
         return matches;
+    },
+
+    generateRey(players, courtCount, courtNames, options) {
+        return {
+            id: Date.now(),
+            name: `Torneo Rey de Cancha ${new Date().toLocaleDateString()}`,
+            type: 'rey',
+            scoreType: options.scoreType,
+            players: players.map(p => ({ ...p, score: 0, wins: 0, matchesPlayed: 0 })),
+            courtCount: parseInt(courtCount),
+            courtNames,
+            matches: []
+        };
+    },
+
+    generateReyNextRound(state) {
+        let newMatches = [];
+        const sorted = [...state.players].sort((a, b) => b.score - a.score);
+        for (let i = 0; i < state.courtCount; i++) {
+            const pIdx = i * 4;
+            if (pIdx + 3 < sorted.length) {
+                newMatches.push(this.createMatchObj(state, [sorted[pIdx].id, sorted[pIdx+1].id], [sorted[pIdx+2].id, sorted[pIdx+3].id], i));
+            }
+        }
+        return newMatches;
+    },
+
+    getPointLabels(type) {
+        if (type === 'normal') return ['0', '15', '30', '40', 'AD'];
+        return null; // Tiebreak types don't need fixed labels
+    },
+
+    updateGlobalStats(globalStats, tournament) {
+        tournament.players.forEach(p => {
+            if (!globalStats.players[p.name]) {
+                globalStats.players[p.name] = { wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, firstPlaces: 0, totalMatches: 0 };
+            }
+            const gs = globalStats.players[p.name];
+            gs.wins += p.wins;
+            gs.losses += (p.matchesPlayed - p.wins);
+            gs.pointsFor += p.score;
+            gs.totalMatches += p.matchesPlayed;
+        });
+        const sorted = [...tournament.players].sort((a,b) => b.score - a.score);
+        if (sorted.length > 0) {
+            const winner = sorted[0];
+            globalStats.players[winner.name].firstPlaces += 1;
+        }
     },
 
     shuffleArray(array) {
