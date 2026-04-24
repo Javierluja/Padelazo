@@ -3,161 +3,172 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Padelazo v3.5</title>
+    <title>Padelazo v3.6</title>
     <link rel="stylesheet" href="css/index.css">
 </head>
-<body style="background-color: #050505; color: #ffffff;">
-    <div class="app-container">
-        <!-- Header -->
-        <header style="margin-bottom: 35px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <h1 style="font-size: 2.2rem; font-weight: 900; letter-spacing: -2px; line-height: 1; color: var(--primary);">PADELAZO</h1>
-                <p style="font-size: 10px; font-weight: 800; color: var(--text-dim); letter-spacing: 2px;">PREMIUM V3.5</p>
+<body>
+<div class="app-container">
+
+    <!-- HEADER -->
+    <header style="margin-bottom:32px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <h1 style="font-size:2.3rem; font-weight:900; letter-spacing:-2px; line-height:1; color:var(--primary);">PADELAZO</h1>
+            <p style="font-size:9px; font-weight:800; color:var(--text-dim); letter-spacing:2.5px; margin-top:2px;">PREMIUM V3.6</p>
+        </div>
+        <div style="width:44px;height:44px;border-radius:14px;border:2px solid var(--primary);background:var(--secondary);display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--primary);font-size:18px;">J</div>
+    </header>
+
+    <!-- ===== View: HOME ===== -->
+    <section id="view-home" class="view">
+        <h2 style="margin-bottom:14px;font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:2px;">Nueva Competencia</h2>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:30px;">
+            <div class="card" style="padding:18px;display:flex;align-items:center;gap:16px;cursor:pointer;" onclick="app.showSetup('americano')">
+                <div style="font-size:36px;flex-shrink:0;">🔄</div>
+                <div><h3 style="font-size:18px;margin:0;">Americano</h3><p style="font-size:11px;color:var(--text-dim);margin:3px 0 0;">Rotación de Parejas</p></div>
             </div>
-            <div id="header-profile" style="width: 45px; height: 45px; border-radius: 16px; border: 2px solid var(--primary); background: var(--secondary); display: flex; align-items: center; justify-content: center; font-weight: 900; color: var(--primary);">J</div>
-        </header>
-
-        <!-- View: Home -->
-        <section id="view-home" class="view">
-            <h2 style="margin-bottom: 15px; font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px;">Nueva Competencia</h2>
-            <div style="display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 30px;">
-                <div class="card" style="padding: 20px; display: flex; align-items: center; gap: 15px; margin: 0;" onclick="app.showSetup('americano')">
-                    <div style="font-size: 32px;">🔄</div>
-                    <div><h3 style="margin:0;">Americano</h3><p style="margin:0; font-size:11px; color:var(--text-dim);">ROTACIÓN DE PAREJAS</p></div>
-                </div>
-                <div class="card" style="padding: 20px; display: flex; align-items: center; gap: 15px; margin: 0;" onclick="app.showSetup('robin')">
-                    <div style="font-size: 32px;">🛡️</div>
-                    <div><h3 style="margin:0;">Todos vs Todos</h3><p style="margin:0; font-size:11px; color:var(--text-dim);">EQUIPOS FIJOS</p></div>
-                </div>
-                <div class="card" style="padding: 20px; display: flex; align-items: center; gap: 15px; margin: 0;" onclick="app.showSetup('rey')">
-                    <div style="font-size: 32px;">👑</div>
-                    <div><h3 style="margin:0;">Rey Cancha</h3><p style="margin:0; font-size:11px; color:var(--text-dim);">DESAFÍO ESCALERA</p></div>
-                </div>
+            <div class="card" style="padding:18px;display:flex;align-items:center;gap:16px;cursor:pointer;" onclick="app.showSetup('robin')">
+                <div style="font-size:36px;flex-shrink:0;">🛡️</div>
+                <div><h3 style="font-size:18px;margin:0;">Todos vs Todos</h3><p style="font-size:11px;color:var(--text-dim);margin:3px 0 0;">Equipos Fijos</p></div>
             </div>
-
-            <div id="active-tournament-card"></div>
-            <div id="history-container"></div>
-        </section>
-
-        <!-- View: Setup -->
-        <section id="view-setup" class="view hidden">
-            <div class="card" style="background: var(--bg-card);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                    <h2 id="setup-title" style="font-size: 20px;">Configuración</h2>
-                    <button onclick="app.showView('home')" style="background: transparent; color: var(--text-dim); border: none; font-weight: 800;">X CANCELAR</button>
-                </div>
-
-                <div class="input-group" style="margin-bottom: 20px;">
-                    <label>Nombre del Evento</label>
-                    <input type="text" id="input-tournament-name" class="ghost-input" placeholder="[ Nombre del Torneo ]">
-                </div>
-
-                <div class="setup-grid">
-                    <div class="input-group">
-                        <label>N° Canchas</label>
-                        <input type="number" id="input-courts" value="1" min="1" onchange="app.updateCourtInputs()">
-                    </div>
-                    <div class="input-group">
-                        <label>Formato</label>
-                        <select id="input-americano-type">
-                            <option value="individual">Individual</option>
-                            <option value="pareja">Por Pareja</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="input-group" style="margin-bottom: 25px;">
-                    <label>Tipo de Marcador</label>
-                    <select id="input-score-type">
-                        <option value="normal">Padel (15, 30, 40, Oro)</option>
-                        <option value="tiebreak">Tie Break (a 7)</option>
-                        <option value="supertie">Super Tie (a 11)</option>
-                    </select>
-                </div>
-
-                <div id="court-names-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;"></div>
-
-                <div class="input-group">
-                    <label>Participantes</label>
-                    <div id="players-list" style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;"></div>
-                    <button class="btn-primary" onclick="app.addPlayerRow()" style="margin-top: 15px; background: var(--secondary); color: var(--text-dim); border: 2px dashed var(--glass-border); box-shadow: none;">+ AÑADIR JUGADOR</button>
-                </div>
-
-                <button class="btn-primary" style="margin-top: 35px; padding: 22px;" onclick="app.startTournament()">VAMOS A JUGAR</button>
+            <div class="card" style="padding:18px;display:flex;align-items:center;gap:16px;cursor:pointer;" onclick="app.showSetup('rey')">
+                <div style="font-size:36px;flex-shrink:0;">👑</div>
+                <div><h3 style="font-size:18px;margin:0;">Rey de Cancha</h3><p style="font-size:11px;color:var(--text-dim);margin:3px 0 0;">Desafío Escalera</p></div>
             </div>
-        </section>
+        </div>
+        <div id="active-tournament-card"></div>
+        <div id="history-container"></div>
+    </section>
 
-        <!-- View: Dashboard -->
-        <section id="view-dashboard" class="view hidden">
-            <div class="tab-nav">
-                <button id="tab-matches" class="tab-btn active" onclick="app.setDashboardTab('matches')">VIVO</button>
-                <button id="tab-ranking" class="tab-btn" onclick="app.setDashboardTab('ranking')">TABLA</button>
-            </div>
-            <div id="dashboard-matches"><div id="matches-content"></div></div>
-            <div id="dashboard-ranking" class="hidden">
-                <div class="rank-tabs" id="ranking-subtabs">
-                    <div class="rank-tab active" data-mode="score" onclick="app.setRankingMode('score')">PUNTOS</div>
-                    <div class="rank-tab" data-mode="wins" onclick="app.setRankingMode('wins')">TRIUNFOS</div>
-                    <div class="rank-tab" data-mode="effect" onclick="app.setRankingMode('effect')">EFECTIVIDAD</div>
-                </div>
-                <div id="leaderboard-content" style="display: flex; flex-direction: column; gap: 12px;"></div>
-            </div>
-        </section>
+    <!-- ===== View: SETUP ===== -->
+    <section id="view-setup" class="view hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+            <h2 id="setup-title" style="font-size:22px;">Configuración</h2>
+            <button onclick="app.showView('home')" style="background:transparent;color:var(--text-dim);border:none;font-weight:800;font-size:14px;cursor:pointer;">✕ CANCELAR</button>
+        </div>
 
-        <!-- View: Score Entry (BIG BUTTONS) -->
-        <section id="view-score" class="view hidden">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                <span id="score-court-label" style="font-size: 11px; font-weight: 900; color: var(--primary); letter-spacing: 2px;">CANCHA</span>
-                <button onclick="app.showView('dashboard')" style="background: var(--secondary); color: var(--text-dim); border: none; padding: 8px 12px; border-radius: 12px; font-weight: 800; font-size: 11px;">CERRAR</button>
-            </div>
+        <div class="input-group" style="margin-bottom:20px;">
+            <label>Nombre del Torneo</label>
+            <input type="text" id="input-tournament-name" class="ghost-input" placeholder="[ Nombre del evento ]">
+        </div>
 
-            <div class="point-grid" id="scoreboard-ui">
-                <!-- Big buttons injected here -->
+        <div class="setup-grid">
+            <div class="input-group">
+                <label>N° Canchas</label>
+                <input type="number" id="input-courts" value="1" min="1" onchange="app.updateCourtInputs()">
             </div>
+            <div class="input-group" id="setup-group-mode">
+                <label>Formato</label>
+                <select id="input-americano-type">
+                    <option value="individual">Individual</option>
+                    <option value="pareja">Por Pareja</option>
+                </select>
+            </div>
+        </div>
 
-            <div class="card" style="margin-top: 30px; border: 1px dashed var(--glass-border); background: transparent; padding: 20px;">
-                <p style="font-size: 10px; font-weight: 800; text-align: center; color: var(--text-dim); margin-bottom: 12px; text-transform: uppercase;">Set Final / Marcador Manual</p>
-                <div style="display: flex; gap: 20px; align-items: center; justify-content: center;">
-                    <input type="number" id="manual-score-1" style="width: 90px; text-align: center; font-size: 36px;" placeholder="0">
-                    <span style="font-weight: 900; color: var(--primary);">VS</span>
-                    <input type="number" id="manual-score-2" style="width: 90px; text-align: center; font-size: 36px;" placeholder="0">
-                </div>
-            </div>
+        <div class="input-group" style="margin-bottom:20px;">
+            <label>Tipo de Marcador</label>
+            <select id="input-score-type">
+                <option value="normal">Pádel (15 · 30 · 40 · Oro)</option>
+                <option value="tiebreak">Tie Break (a 7 pts)</option>
+                <option value="supertie">Super Tie Break (a 11 pts)</option>
+            </select>
+        </div>
 
-            <button class="btn-primary" style="margin-top: 25px;" onclick="app.submitScore()">GUARDAR RESULTADO</button>
-        </section>
+        <div id="court-names-container" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;"></div>
 
-        <!-- View: Global Stats -->
-        <section id="view-stats" class="view hidden">
-            <h2 style="margin-bottom: 30px; text-align: center; color: var(--primary); font-weight: 900; font-size: 24px;">RANKING GLOBAL</h2>
-            <div class="rank-tabs">
-                <div class="rank-tab active" data-gmode="cups" onclick="app.setGlobalRankMode('cups')">COPAS</div>
-                <div class="rank-tab" data-gmode="effect" onclick="app.setGlobalRankMode('effect')">EFECTIVIDAD</div>
-                <div class="rank-tab" data-gmode="wins" onclick="app.setGlobalRankMode('wins')">VICTORIAS</div>
-            </div>
-            <div id="global-stats-content" style="display: flex; flex-direction: column; gap: 12px;"></div>
-        </section>
+        <div class="input-group" style="margin-bottom:8px;"><label>Participantes</label></div>
+        <div id="players-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;"></div>
+        <button onclick="app.addPlayerRow()" class="btn-outline" style="border-style:dashed !important; color:var(--text-dim);">+ AÑADIR JUGADOR</button>
 
-        <!-- Bottom Navigation -->
-        <nav class="bottom-nav">
-            <div class="nav-item active" onclick="app.showView('home')" id="nav-home">
-                <span class="nav-icon">🏠</span>
-                <span>INICIO</span>
-            </div>
-            <div class="nav-item" onclick="app.showDashboardIfActive()" id="nav-dash">
-                <span class="nav-icon">🎾</span>
-                <span>TORNEO</span>
-            </div>
-            <div class="nav-item" onclick="app.showGlobalStats()" id="nav-stats">
-                <span class="nav-icon">📊</span>
-                <span>GLOBAL</span>
-            </div>
-        </nav>
-    </div>
+        <button class="btn-primary" style="margin-top:32px;" onclick="app.startTournament()">VAMOS A JUGAR 🎾</button>
+    </section>
 
-    <!-- Scripts -->
-    <script src="js/storage.js"></script>
-    <script src="js/engine.js"></script>
-    <script src="js/ui.js"></script>
+    <!-- ===== View: DASHBOARD ===== -->
+    <section id="view-dashboard" class="view hidden">
+        <div class="tab-nav">
+            <button id="tab-matches" class="tab-btn active" onclick="app.setDashboardTab('matches')">EN VIVO</button>
+            <button id="tab-ranking" class="tab-btn" onclick="app.setDashboardTab('ranking')">TABLA</button>
+        </div>
+
+        <div id="dashboard-matches"><div id="matches-content"></div></div>
+
+        <div id="dashboard-ranking" class="hidden">
+            <div class="rank-tabs" id="ranking-subtabs">
+                <div class="rank-tab active" data-mode="score" onclick="app.setRankingMode('score')">PUNTOS</div>
+                <div class="rank-tab" data-mode="wins" onclick="app.setRankingMode('wins')">TRIUNFOS</div>
+                <div class="rank-tab" data-mode="effect" onclick="app.setRankingMode('effect')">EFICACIA</div>
+            </div>
+            <div id="leaderboard-content" style="display:flex;flex-direction:column;gap:10px;"></div>
+        </div>
+    </section>
+
+    <!-- ===== View: SCORE ===== -->
+    <section id="view-score" class="view hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <span id="score-court-label" style="font-size:11px;font-weight:900;color:var(--primary);letter-spacing:2px;">CANCHA</span>
+            <button onclick="app.showView('dashboard')" style="background:var(--secondary);color:var(--text-dim);border:none;padding:8px 14px;border-radius:12px;font-weight:800;font-size:11px;cursor:pointer;">✕ CERRAR</button>
+        </div>
+
+        <!-- TIMER -->
+        <div class="match-timer-badge">
+            <span style="font-size:14px;">⏱</span>
+            <span id="match-timer">00:00</span>
+            <span style="font-size:11px;font-weight:700;color:var(--text-dim);">TIEMPO</span>
+        </div>
+
+        <!-- BIG SCORE BUTTONS -->
+        <div id="scoreboard-ui"></div>
+
+        <!-- MANUAL ENTRY -->
+        <div style="margin-top:24px;background:var(--secondary);border-radius:20px;padding:18px;border:1px dashed var(--glass-border);">
+            <p style="font-size:9px;font-weight:800;text-align:center;color:var(--text-dim);margin-bottom:14px;text-transform:uppercase;letter-spacing:1px;">Resultado Final del Set</p>
+            <div style="display:flex;gap:16px;align-items:center;justify-content:center;">
+                <input type="number" id="manual-score-1" style="width:85px;text-align:center;font-size:40px;font-weight:900;" placeholder="0">
+                <span style="font-weight:900;color:var(--primary);font-size:18px;">VS</span>
+                <input type="number" id="manual-score-2" style="width:85px;text-align:center;font-size:40px;font-weight:900;" placeholder="0">
+            </div>
+        </div>
+
+        <button class="btn-primary" style="margin-top:20px;" onclick="app.submitScore()">GUARDAR RESULTADO</button>
+    </section>
+
+    <!-- ===== View: PAST DETAIL ===== -->
+    <section id="view-past-detail" class="view hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+            <h2 style="font-size:18px;">Resumen</h2>
+            <button onclick="app.showView('home')" style="background:transparent;color:var(--text-dim);border:none;font-weight:800;font-size:14px;cursor:pointer;">← VOLVER</button>
+        </div>
+        <div id="past-detail-content"></div>
+    </section>
+
+    <!-- ===== View: GLOBAL STATS ===== -->
+    <section id="view-stats" class="view hidden">
+        <h2 style="margin-bottom:24px;text-align:center;color:var(--primary);font-weight:900;font-size:22px;">SALÓN DE LA FAMA</h2>
+        <div class="rank-tabs" style="justify-content:center;">
+            <div class="rank-tab active" data-gmode="cups" onclick="app.setGlobalRankMode('cups')">COPAS</div>
+            <div class="rank-tab" data-gmode="effect" onclick="app.setGlobalRankMode('effect')">EFICACIA</div>
+            <div class="rank-tab" data-gmode="wins" onclick="app.setGlobalRankMode('wins')">VICTORIAS</div>
+        </div>
+        <div id="global-stats-content" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </section>
+
+    <!-- BOTTOM NAV -->
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="app.showView('home')" id="nav-home">
+            <span class="nav-icon">🏠</span><span>INICIO</span>
+        </div>
+        <div class="nav-item" onclick="app.showDashboardIfActive()" id="nav-dash">
+            <span class="nav-icon">🎾</span><span>TORNEO</span>
+        </div>
+        <div class="nav-item" onclick="app.showGlobalStats()" id="nav-stats">
+            <span class="nav-icon">📊</span><span>GLOBAL</span>
+        </div>
+    </nav>
+
+</div>
+
+<script src="js/storage.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/ui.js"></script>
 </body>
 </html>
