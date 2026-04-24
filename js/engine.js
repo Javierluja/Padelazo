@@ -1,199 +1,247 @@
+/* =====================================================
+   ENGINE v4.0 — Motor de Torneos
+   - Todas las combinaciones pre-generadas
+   - Detección de fin de rondas
+   - Estadísticas globales extendidas
+   ===================================================== */
 const Engine = {
+
+    /* -------- AMERICANO -------- */
     generateAmericano(players, courtCount, courtNames, options) {
         const { americanoType, scoreType } = options;
-        
-        let allPossiblePairs = [];
+        const ids = players.map(p => p.id);
+        let allPossibleMatches = [];
+
         if (americanoType === 'individual') {
-            for (let i = 0; i < players.length; i++) {
-                for (let j = i + 1; j < players.length; j++) {
-                    allPossiblePairs.push([players[i].id, players[j].id]);
-                }
-            }
+            // Generar todos los pares posibles
+            const pairs = [];
+            for (let i = 0; i < ids.length; i++)
+                for (let j = i + 1; j < ids.length; j++)
+                    pairs.push([ids[i], ids[j]]);
+            // Generar todos los cruces únicos (par vs par sin jugadores comunes)
+            for (let i = 0; i < pairs.length; i++)
+                for (let j = i + 1; j < pairs.length; j++)
+                    if (!pairs[i].some(id => pairs[j].includes(id)))
+                        allPossibleMatches.push({ team1: pairs[i], team2: pairs[j] });
         } else {
-            // By Pairs: players come already grouped in pairs list
-            for (let i = 0; i < players.length; i += 2) {
-                if (i + 1 < players.length) {
-                    allPossiblePairs.push([players[i].id, players[i+1].id]);
-                }
-            }
+            // Parejas fijas: players[0]+players[1] vs players[2]+players[3], etc.
+            const prePairs = [];
+            for (let i = 0; i < ids.length - 1; i += 2)
+                prePairs.push([ids[i], ids[i + 1]]);
+            for (let i = 0; i < prePairs.length; i++)
+                for (let j = i + 1; j < prePairs.length; j++)
+                    allPossibleMatches.push({ team1: prePairs[i], team2: prePairs[j] });
         }
 
-        this.shuffleArray(allPossiblePairs);
+        this.shuffleArray(allPossibleMatches);
 
         return {
             id: Date.now(),
-            name: `Torneo ${new Date().toLocaleDateString()}`,
+            name: 'Torneo Americano',
             type: 'americano',
             americanoType,
             scoreType,
-            players: players.map(p => ({ ...p, score: 0, wins: 0, matchesPlayed: 0 })),
+            players: players.map(p => this.initPlayer(p)),
             courtCount: parseInt(courtCount),
-            courtNames: courtNames,
+            courtNames,
             matches: [],
-            allPossibleMatches: this.generateMatchesFromPairs(allPossiblePairs, americanoType),
-            currentMatchIndex: 0
+            allPossibleMatches,
+            currentMatchIndex: 0,
+            allCombinationsDone: false
         };
     },
 
-    generateMatchesFromPairs(pairs, type) {
-        const matches = [];
-        if (type === 'individual') {
-            return pairs; 
-        } else {
-            for (let i = 0; i < pairs.length; i++) {
-                for (let j = i + 1; j < pairs.length; j++) {
-                    matches.push({ team1: pairs[i], team2: pairs[j] });
-                }
-            }
-            this.shuffleArray(matches);
-            return matches;
-        }
-    },
-
     generateAmericanoNextRound(state) {
+        if (state.currentMatchIndex >= state.allPossibleMatches.length) {
+            state.allCombinationsDone = true;
+            return [];
+        }
+
         const matches = [];
         const playersThisRound = new Set();
-        const maxMatches = state.courtCount;
+        let idx = state.currentMatchIndex;
 
-        if (state.americanoType === 'individual') {
-            let pair1Idx = 0;
-            while (matches.length < maxMatches && pair1Idx < state.allPossibleMatches.length) {
-                const pair1 = state.allPossibleMatches[pair1Idx];
-                if (!playersThisRound.has(pair1[0]) && !playersThisRound.has(pair1[1])) {
-                    let pair2Idx = pair1Idx + 1;
-                    while (pair2Idx < state.allPossibleMatches.length) {
-                        const pair2 = state.allPossibleMatches[pair2Idx];
-                        if (!playersThisRound.has(pair2[0]) && !playersThisRound.has(pair2[1])) {
-                            matches.push(this.createMatchObj(state, pair1, pair2, matches.length));
-                            playersThisRound.add(pair1[0]); playersThisRound.add(pair1[1]);
-                            playersThisRound.add(pair2[0]); playersThisRound.add(pair2[1]);
-                            state.allPossibleMatches.splice(pair2Idx, 1);
-                            state.allPossibleMatches.splice(pair1Idx, 1);
-                            state.allPossibleMatches.push(pair1, pair2);
-                            pair1Idx--;
-                            break;
-                        }
-                        pair2Idx++;
-                    }
-                }
-                pair1Idx++;
+        while (matches.length < state.courtCount && idx < state.allPossibleMatches.length) {
+            const m = state.allPossibleMatches[idx];
+            const allFree = [...m.team1, ...m.team2].every(id => !playersThisRound.has(id));
+            if (allFree) {
+                matches.push(this.createMatchObj(state, m.team1, m.team2, matches.length));
+                [...m.team1, ...m.team2].forEach(id => playersThisRound.add(id));
             }
-        } else {
-            let idx = state.currentMatchIndex;
-            while (matches.length < maxMatches && idx < state.allPossibleMatches.length) {
-                const m = state.allPossibleMatches[idx];
-                if (!playersThisRound.has(m.team1[0]) && !playersThisRound.has(m.team2[0])) {
-                    matches.push(this.createMatchObj(state, m.team1, m.team2, matches.length));
-                    playersThisRound.add(m.team1[0]); playersThisRound.add(m.team2[0]);
-                }
-                idx++;
-            }
-            state.currentMatchIndex = idx;
+            idx++;
+        }
+
+        state.currentMatchIndex = idx;
+        if (idx >= state.allPossibleMatches.length) {
+            state.allCombinationsDone = true;
         }
         return matches;
     },
 
-    createMatchObj(state, t1, t2, index) {
-        return {
-            id: Date.now() + index,
-            team1: t1,
-            team2: t2,
-            score1: null,
-            score2: null,
-            points: { t1: 0, t2: 0, history: [] },
-            court: state.courtNames[index] || `Cancha ${index + 1}`
-        };
-    },
-
+    /* -------- TODOS vs TODOS -------- */
     generateRobin(players, courtCount, courtNames, options) {
+        const ids = players.map(p => p.id);
         const teams = [];
-        for (let i = 0; i < players.length; i += 2) {
-            if (i + 1 < players.length) teams.push([players[i].id, players[i+1].id]);
-        }
-        const matches = [];
-        for (let i = 0; i < teams.length; i++) {
-            for (let j = i + 1; j < teams.length; j++) {
-                matches.push({ team1: teams[i], team2: teams[j] });
-            }
-        }
-        this.shuffleArray(matches);
+        for (let i = 0; i < ids.length - 1; i += 2)
+            teams.push([ids[i], ids[i + 1]]);
+
+        const allPossibleMatches = [];
+        for (let i = 0; i < teams.length; i++)
+            for (let j = i + 1; j < teams.length; j++)
+                allPossibleMatches.push({ team1: teams[i], team2: teams[j] });
+
+        this.shuffleArray(allPossibleMatches);
+
         return {
             id: Date.now(),
-            name: `Torneo Todos vs Todos ${new Date().toLocaleDateString()}`,
+            name: 'Todos vs Todos',
             type: 'robin',
             scoreType: options.scoreType,
-            players: players.map(p => ({ ...p, score: 0, wins: 0, matchesPlayed: 0 })),
+            players: players.map(p => this.initPlayer(p)),
             courtCount: parseInt(courtCount),
-            courtNames: courtNames,
+            courtNames,
             matches: [],
-            allPossibleMatches: matches,
-            currentMatchIndex: 0
+            allPossibleMatches,
+            currentMatchIndex: 0,
+            allCombinationsDone: false
         };
     },
 
     generateRobinNextRound(state) {
+        if (state.currentMatchIndex >= state.allPossibleMatches.length) {
+            state.allCombinationsDone = true;
+            return [];
+        }
+
         const matches = [];
         const teamsThisRound = new Set();
         let idx = state.currentMatchIndex;
+
         while (matches.length < state.courtCount && idx < state.allPossibleMatches.length) {
             const m = state.allPossibleMatches[idx];
-            if (!teamsThisRound.has(m.team1.toString()) && !teamsThisRound.has(m.team2.toString())) {
+            const k1 = m.team1.sort().join(','), k2 = m.team2.sort().join(',');
+            if (!teamsThisRound.has(k1) && !teamsThisRound.has(k2)) {
                 matches.push(this.createMatchObj(state, m.team1, m.team2, matches.length));
-                teamsThisRound.add(m.team1.toString());
-                teamsThisRound.add(m.team2.toString());
+                teamsThisRound.add(k1); teamsThisRound.add(k2);
             }
             idx++;
         }
+
         state.currentMatchIndex = idx;
+        if (idx >= state.allPossibleMatches.length) state.allCombinationsDone = true;
         return matches;
     },
 
+    /* -------- REY CANCHA -------- */
     generateRey(players, courtCount, courtNames, options) {
         return {
             id: Date.now(),
-            name: `Torneo Rey de Cancha ${new Date().toLocaleDateString()}`,
+            name: 'Rey de Cancha',
             type: 'rey',
             scoreType: options.scoreType,
-            players: players.map(p => ({ ...p, score: 0, wins: 0, matchesPlayed: 0 })),
+            players: players.map(p => this.initPlayer(p)),
             courtCount: parseInt(courtCount),
             courtNames,
-            matches: []
+            matches: [],
+            allPossibleMatches: [],
+            allCombinationsDone: false
         };
     },
 
     generateReyNextRound(state) {
-        let newMatches = [];
         const sorted = [...state.players].sort((a, b) => b.score - a.score);
+        const matches = [];
         for (let i = 0; i < state.courtCount; i++) {
             const pIdx = i * 4;
             if (pIdx + 3 < sorted.length) {
-                newMatches.push(this.createMatchObj(state, [sorted[pIdx].id, sorted[pIdx+1].id], [sorted[pIdx+2].id, sorted[pIdx+3].id], i));
+                matches.push(this.createMatchObj(
+                    state,
+                    [sorted[pIdx].id, sorted[pIdx + 1].id],
+                    [sorted[pIdx + 2].id, sorted[pIdx + 3].id],
+                    i
+                ));
             }
         }
-        return newMatches;
+        return matches;
     },
 
-    getPointLabels(type) {
-        if (type === 'normal') return ['0', '15', '30', '40', 'AD'];
-        return null; // Tiebreak types don't need fixed labels
+    /* -------- RESET COMBINACIONES -------- */
+    resetAllCombinations(state) {
+        state.currentMatchIndex = 0;
+        state.allCombinationsDone = false;
+        this.shuffleArray(state.allPossibleMatches);
     },
 
+    /* -------- HELPERS -------- */
+    initPlayer(p) {
+        return {
+            ...p,
+            score: 0,
+            wins: 0,
+            matchesPlayed: 0,
+            pointsAgainst: 0,
+            totalSecondsOnCourt: 0,
+            currentStreak: 0,
+            bestStreak: 0
+        };
+    },
+
+    createMatchObj(state, t1, t2, index) {
+        return {
+            id: Date.now() + index + Math.random(),
+            team1: t1,
+            team2: t2,
+            score1: null,
+            score2: null,
+            points: { t1: 0, t2: 0 },
+            duration: 0,
+            court: state.courtNames[index] || `Cancha ${index + 1}`
+        };
+    },
+
+    /* -------- ESTADÍSTICAS GLOBALES -------- */
     updateGlobalStats(globalStats, tournament) {
+        const sorted = [...tournament.players].sort((a, b) => b.score - a.score);
+
         tournament.players.forEach(p => {
             if (!globalStats.players[p.name]) {
-                globalStats.players[p.name] = { wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, firstPlaces: 0, totalMatches: 0 };
+                globalStats.players[p.name] = {
+                    wins: 0, losses: 0,
+                    pointsFor: 0, pointsAgainst: 0,
+                    firstPlaces: 0, secondPlaces: 0, thirdPlaces: 0,
+                    totalMatches: 0, tournamentsPlayed: 0,
+                    bestStreak: 0, currentStreak: 0,
+                    totalSecondsOnCourt: 0
+                };
             }
             const gs = globalStats.players[p.name];
             gs.wins += p.wins;
             gs.losses += (p.matchesPlayed - p.wins);
             gs.pointsFor += p.score;
+            gs.pointsAgainst += (p.pointsAgainst || 0);
             gs.totalMatches += p.matchesPlayed;
+            gs.tournamentsPlayed += 1;
+            gs.totalSecondsOnCourt += (p.totalSecondsOnCourt || 0);
+
+            // Racha: actualizar basado en desempeño en el torneo
+            if (p.wins > 0 && p.wins > (p.matchesPlayed - p.wins)) {
+                gs.currentStreak += p.wins;
+                if (gs.currentStreak > gs.bestStreak) gs.bestStreak = gs.currentStreak;
+            } else {
+                gs.currentStreak = 0;
+            }
         });
-        const sorted = [...tournament.players].sort((a,b) => b.score - a.score);
-        if (sorted.length > 0) {
-            const winner = sorted[0];
-            globalStats.players[winner.name].firstPlaces += 1;
-        }
+
+        // Podios
+        const addPodium = (pos, field) => {
+            if (sorted[pos]) {
+                const gs = globalStats.players[sorted[pos].name];
+                if (gs) gs[field] = (gs[field] || 0) + 1;
+            }
+        };
+        addPodium(0, 'firstPlaces');
+        addPodium(1, 'secondPlaces');
+        addPodium(2, 'thirdPlaces');
     },
 
     shuffleArray(array) {

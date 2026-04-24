@@ -3,47 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Padelazo v3.6</title>
+    <title>Padelazo – Premium</title>
     <link rel="stylesheet" href="css/index.css">
+    <!-- QR Code library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
 <div class="app-container">
 
     <!-- HEADER -->
-    <header style="margin-bottom:32px; display:flex; justify-content:space-between; align-items:center;">
+    <header style="margin-bottom:32px;display:flex;justify-content:space-between;align-items:center;">
         <div>
-            <h1 style="font-size:2.3rem; font-weight:900; letter-spacing:-2px; line-height:1; color:var(--primary);">PADELAZO</h1>
-            <p style="font-size:9px; font-weight:800; color:var(--text-dim); letter-spacing:2.5px; margin-top:2px;">PREMIUM V3.6</p>
+            <h1 style="font-size:2.3rem;font-weight:900;letter-spacing:-2px;line-height:1;color:var(--primary);">PADELAZO</h1>
+            <p style="font-size:9px;font-weight:800;color:var(--text-dim);letter-spacing:2.5px;margin-top:2px;">PREMIUM V4.0</p>
         </div>
-        <div style="width:44px;height:44px;border-radius:14px;border:2px solid var(--primary);background:var(--secondary);display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--primary);font-size:18px;">J</div>
+        <div style="width:44px;height:44px;border-radius:14px;border:2px solid var(--primary);background:var(--secondary);display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--primary);">🎾</div>
     </header>
 
-    <!-- ===== View: HOME ===== -->
+    <!-- ===== HOME ===== -->
     <section id="view-home" class="view">
-        <h2 style="margin-bottom:14px;font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:2px;">Nueva Competencia</h2>
+        <h2 class="section-label">Nueva Competencia</h2>
         <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:30px;">
-            <div class="card" style="padding:18px;display:flex;align-items:center;gap:16px;cursor:pointer;" onclick="app.showSetup('americano')">
-                <div style="font-size:36px;flex-shrink:0;">🔄</div>
-                <div><h3 style="font-size:18px;margin:0;">Americano</h3><p style="font-size:11px;color:var(--text-dim);margin:3px 0 0;">Rotación de Parejas</p></div>
+            <div class="card card-row" onclick="app.showSetup('americano')">
+                <div style="font-size:38px;flex-shrink:0;">🔄</div>
+                <div><h3 style="font-size:18px;margin:0 0 2px;">Americano</h3><p style="font-size:11px;color:var(--text-dim);margin:0;">Rotación de Parejas</p></div>
             </div>
-            <div class="card" style="padding:18px;display:flex;align-items:center;gap:16px;cursor:pointer;" onclick="app.showSetup('robin')">
-                <div style="font-size:36px;flex-shrink:0;">🛡️</div>
-                <div><h3 style="font-size:18px;margin:0;">Todos vs Todos</h3><p style="font-size:11px;color:var(--text-dim);margin:3px 0 0;">Equipos Fijos</p></div>
+            <div class="card card-row" onclick="app.showSetup('robin')">
+                <div style="font-size:38px;flex-shrink:0;">🛡️</div>
+                <div><h3 style="font-size:18px;margin:0 0 2px;">Todos vs Todos</h3><p style="font-size:11px;color:var(--text-dim);margin:0;">Equipos Fijos</p></div>
             </div>
-            <div class="card" style="padding:18px;display:flex;align-items:center;gap:16px;cursor:pointer;" onclick="app.showSetup('rey')">
-                <div style="font-size:36px;flex-shrink:0;">👑</div>
-                <div><h3 style="font-size:18px;margin:0;">Rey de Cancha</h3><p style="font-size:11px;color:var(--text-dim);margin:3px 0 0;">Desafío Escalera</p></div>
+            <div class="card card-row" onclick="app.showSetup('rey')">
+                <div style="font-size:38px;flex-shrink:0;">👑</div>
+                <div><h3 style="font-size:18px;margin:0 0 2px;">Rey de Cancha</h3><p style="font-size:11px;color:var(--text-dim);margin:0;">Desafío Escalera</p></div>
             </div>
         </div>
         <div id="active-tournament-card"></div>
         <div id="history-container"></div>
     </section>
 
-    <!-- ===== View: SETUP ===== -->
+    <!-- ===== SETUP ===== -->
     <section id="view-setup" class="view hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
             <h2 id="setup-title" style="font-size:22px;">Configuración</h2>
-            <button onclick="app.showView('home')" style="background:transparent;color:var(--text-dim);border:none;font-weight:800;font-size:14px;cursor:pointer;">✕ CANCELAR</button>
+            <button onclick="app.showView('home')" class="btn-ghost">✕ CANCELAR</button>
         </div>
 
         <div class="input-group" style="margin-bottom:20px;">
@@ -69,8 +74,8 @@
             <label>Tipo de Marcador</label>
             <select id="input-score-type">
                 <option value="normal">Pádel (15 · 30 · 40 · Oro)</option>
-                <option value="tiebreak">Tie Break (a 7 pts)</option>
-                <option value="supertie">Super Tie Break (a 11 pts)</option>
+                <option value="tiebreak">Tie Break (a 7 puntos)</option>
+                <option value="supertie">Super Tie Break (a 11 puntos)</option>
             </select>
         </div>
 
@@ -78,76 +83,149 @@
 
         <div class="input-group" style="margin-bottom:8px;"><label>Participantes</label></div>
         <div id="players-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;"></div>
-        <button onclick="app.addPlayerRow()" class="btn-outline" style="border-style:dashed !important; color:var(--text-dim);">+ AÑADIR JUGADOR</button>
+        <button onclick="app.addPlayerRow()" class="btn-outline" style="border-style:dashed;color:var(--text-dim);margin-bottom:32px;">+ AÑADIR JUGADOR MANUAL</button>
 
-        <button class="btn-primary" style="margin-top:32px;" onclick="app.startTournament()">VAMOS A JUGAR 🎾</button>
+        <!-- Botones de inicio -->
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <button class="btn-primary" onclick="app.startTournament()">INICIAR YA 🎾</button>
+            <button id="btn-invite" class="btn-outline" style="border-color:var(--primary);color:var(--primary);" onclick="app.openInviteRoom()">
+                🔗 CONVOCAR JUGADORES EN LÍNEA
+            </button>
+        </div>
     </section>
 
-    <!-- ===== View: DASHBOARD ===== -->
+    <!-- ===== DASHBOARD ===== -->
     <section id="view-dashboard" class="view hidden">
         <div class="tab-nav">
             <button id="tab-matches" class="tab-btn active" onclick="app.setDashboardTab('matches')">EN VIVO</button>
             <button id="tab-ranking" class="tab-btn" onclick="app.setDashboardTab('ranking')">TABLA</button>
         </div>
-
         <div id="dashboard-matches"><div id="matches-content"></div></div>
-
         <div id="dashboard-ranking" class="hidden">
             <div class="rank-tabs" id="ranking-subtabs">
                 <div class="rank-tab active" data-mode="score" onclick="app.setRankingMode('score')">PUNTOS</div>
                 <div class="rank-tab" data-mode="wins" onclick="app.setRankingMode('wins')">TRIUNFOS</div>
                 <div class="rank-tab" data-mode="effect" onclick="app.setRankingMode('effect')">EFICACIA</div>
+                <div class="rank-tab" data-mode="diff" onclick="app.setRankingMode('diff')">DIFER.</div>
+                <div class="rank-tab" data-mode="avg" onclick="app.setRankingMode('avg')">PROMEDIO</div>
             </div>
             <div id="leaderboard-content" style="display:flex;flex-direction:column;gap:10px;"></div>
         </div>
     </section>
 
-    <!-- ===== View: SCORE ===== -->
+    <!-- ===== SCORE ===== -->
     <section id="view-score" class="view hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
             <span id="score-court-label" style="font-size:11px;font-weight:900;color:var(--primary);letter-spacing:2px;">CANCHA</span>
-            <button onclick="app.showView('dashboard')" style="background:var(--secondary);color:var(--text-dim);border:none;padding:8px 14px;border-radius:12px;font-weight:800;font-size:11px;cursor:pointer;">✕ CERRAR</button>
+            <button onclick="app.showView('dashboard')" class="btn-ghost">✕ CERRAR</button>
         </div>
-
-        <!-- TIMER -->
+        <!-- Timer -->
         <div class="match-timer-badge">
-            <span style="font-size:14px;">⏱</span>
-            <span id="match-timer">00:00</span>
+            <span>⏱</span>
+            <span id="match-timer" style="font-size:28px;font-weight:900;color:var(--text-dim);font-variant-numeric:tabular-nums;">00:00</span>
             <span style="font-size:11px;font-weight:700;color:var(--text-dim);">TIEMPO</span>
         </div>
-
-        <!-- BIG SCORE BUTTONS -->
-        <div id="scoreboard-ui"></div>
-
-        <!-- MANUAL ENTRY -->
+        <!-- Big Score Buttons -->
+        <div id="scoreboard-ui" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"></div>
+        <!-- Manual Entry -->
         <div style="margin-top:24px;background:var(--secondary);border-radius:20px;padding:18px;border:1px dashed var(--glass-border);">
-            <p style="font-size:9px;font-weight:800;text-align:center;color:var(--text-dim);margin-bottom:14px;text-transform:uppercase;letter-spacing:1px;">Resultado Final del Set</p>
+            <p style="font-size:9px;font-weight:800;text-align:center;color:var(--text-dim);margin-bottom:14px;text-transform:uppercase;letter-spacing:1px;">Resultado Final / Manual</p>
             <div style="display:flex;gap:16px;align-items:center;justify-content:center;">
                 <input type="number" id="manual-score-1" style="width:85px;text-align:center;font-size:40px;font-weight:900;" placeholder="0">
                 <span style="font-weight:900;color:var(--primary);font-size:18px;">VS</span>
                 <input type="number" id="manual-score-2" style="width:85px;text-align:center;font-size:40px;font-weight:900;" placeholder="0">
             </div>
         </div>
-
         <button class="btn-primary" style="margin-top:20px;" onclick="app.submitScore()">GUARDAR RESULTADO</button>
     </section>
 
-    <!-- ===== View: PAST DETAIL ===== -->
+    <!-- ===== HISTORIAL DETALLE ===== -->
     <section id="view-past-detail" class="view hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
             <h2 style="font-size:18px;">Resumen</h2>
-            <button onclick="app.showView('home')" style="background:transparent;color:var(--text-dim);border:none;font-weight:800;font-size:14px;cursor:pointer;">← VOLVER</button>
+            <button onclick="app.showView('home')" class="btn-ghost">← VOLVER</button>
         </div>
         <div id="past-detail-content"></div>
     </section>
 
-    <!-- ===== View: GLOBAL STATS ===== -->
+    <!-- ===== INVITE ROOM (Organizador espera jugadores) ===== -->
+    <section id="view-invite" class="view hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+            <h2 style="font-size:18px;">Sala de Inscripción</h2>
+            <button onclick="app.showView('setup')" class="btn-ghost">← VOLVER</button>
+        </div>
+
+        <div class="card" style="text-align:center;margin-bottom:20px;">
+            <p class="label-tag" style="margin-bottom:4px;">TORNEO</p>
+            <h3 id="invite-tournament-name" style="font-size:20px;margin-bottom:20px;">–</h3>
+            <!-- QR -->
+            <div id="qr-container" style="display:flex;justify-content:center;margin-bottom:20px;"></div>
+            <!-- Code -->
+            <p style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">Código de acceso</p>
+            <div style="font-size:36px;font-weight:900;color:var(--primary);letter-spacing:8px;" id="invite-code-display">–</div>
+            <!-- URL -->
+            <p style="font-size:10px;color:var(--text-dim);margin-top:12px;word-break:break-all;" id="invite-url"></p>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                <h4 class="label-tag">JUGADORES INSCRITOS</h4>
+                <span id="invite-players-count" style="font-weight:900;color:var(--primary);font-size:18px;">0</span>
+            </div>
+            <div id="invite-players-list"></div>
+        </div>
+
+        <button id="btn-start-invite" class="btn-primary" onclick="app.startFromInvite()" disabled>
+            INICIAR TORNEO CON ESTOS JUGADORES
+        </button>
+        <button class="btn-outline" style="margin-top:12px;" onclick="app.startTournament()">
+            Iniciar Solo con Jugadores Manuales
+        </button>
+    </section>
+
+    <!-- ===== JOIN VIEW (El jugador llega desde el link) ===== -->
+    <section id="view-join" class="view hidden" style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:30px 20px;">
+        <div style="font-size:60px;margin-bottom:16px;">🎾</div>
+        <h1 style="font-size:2rem;font-weight:900;color:var(--primary);margin-bottom:4px;">PADELAZO</h1>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:30px;">Código: <strong id="join-code-display" style="color:var(--primary);">–</strong></p>
+        <p style="font-size:14px;color:var(--text-dim);margin-bottom:4px;">Te invitaron a</p>
+        <h2 id="join-tournament-name" style="font-size:22px;margin-bottom:30px;">...</h2>
+
+        <div id="join-form" style="width:100%;max-width:380px;">
+            <div class="input-group" style="margin-bottom:16px;text-align:left;">
+                <label>Tu Nombre</label>
+                <input type="text" id="join-player-name" placeholder="¿Cómo te llaman en la cancha?">
+            </div>
+            <div style="margin-bottom:24px;display:flex;flex-direction:column;align-items:center;gap:10px;">
+                <label id="join-photo-label" class="photo-upload-label" style="width:80px;height:80px;border-radius:20px;" >
+                    <div class="avatar-placeholder" style="font-size:32px;">📷</div>
+                    <img class="player-photo-thumb hidden" style="width:100%;height:100%;object-fit:cover;">
+                    <input type="file" accept="image/*" class="hidden" onchange="app.handleJoinPhoto(this)">
+                </label>
+                <p style="font-size:11px;color:var(--text-dim);">Toca para subir tu foto</p>
+            </div>
+            <button id="btn-join-submit" class="btn-primary" onclick="app.submitJoin()">INSCRIBIRME ✅</button>
+        </div>
+
+        <div id="join-success" class="hidden" style="text-align:center;padding:30px;">
+            <div style="font-size:60px;margin-bottom:16px;">🎉</div>
+            <h3 style="margin-bottom:8px;">¡Inscrito en</h3>
+            <strong id="join-success-name" style="color:var(--primary);font-size:20px;">–</strong>
+            <p style="font-size:13px;color:var(--text-dim);margin-top:16px;">Avísale al organizador que ya apareces en la sala.</p>
+        </div>
+    </section>
+
+    <!-- ===== GLOBAL STATS ===== -->
     <section id="view-stats" class="view hidden">
-        <h2 style="margin-bottom:24px;text-align:center;color:var(--primary);font-weight:900;font-size:22px;">SALÓN DE LA FAMA</h2>
-        <div class="rank-tabs" style="justify-content:center;">
-            <div class="rank-tab active" data-gmode="cups" onclick="app.setGlobalRankMode('cups')">COPAS</div>
-            <div class="rank-tab" data-gmode="effect" onclick="app.setGlobalRankMode('effect')">EFICACIA</div>
-            <div class="rank-tab" data-gmode="wins" onclick="app.setGlobalRankMode('wins')">VICTORIAS</div>
+        <h2 style="margin-bottom:24px;text-align:center;color:var(--primary);font-weight:900;font-size:22px;">🏟 SALÓN DE LA FAMA</h2>
+        <div class="rank-tabs" style="flex-wrap:wrap;">
+            <div class="rank-tab active" data-gmode="cups" onclick="app.setGlobalRankMode('cups')">🏆 COPAS</div>
+            <div class="rank-tab" data-gmode="podios" onclick="app.setGlobalRankMode('podios')">🏅 PODIOS</div>
+            <div class="rank-tab" data-gmode="effect" onclick="app.setGlobalRankMode('effect')">⚡ EFIC.</div>
+            <div class="rank-tab" data-gmode="streak" onclick="app.setGlobalRankMode('streak')">🔥 RACHA</div>
+            <div class="rank-tab" data-gmode="diff" onclick="app.setGlobalRankMode('diff')">💥 DIFER.</div>
+            <div class="rank-tab" data-gmode="time" onclick="app.setGlobalRankMode('time')">⏱ TIEMPO</div>
+            <div class="rank-tab" data-gmode="played" onclick="app.setGlobalRankMode('played')">🎾 JUGADOS</div>
         </div>
         <div id="global-stats-content" style="display:flex;flex-direction:column;gap:10px;"></div>
     </section>
@@ -167,8 +245,26 @@
 
 </div>
 
+<!-- Scripts -->
 <script src="js/storage.js"></script>
 <script src="js/engine.js"></script>
+<script src="js/firebase.js"></script>
 <script src="js/ui.js"></script>
+<script>
+    // Manejar foto en formulario de inscripción
+    app.handleJoinPhoto = function(input) {
+        if (!input.files?.[0]) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const label = document.getElementById('join-photo-label');
+            const img = label.querySelector('img');
+            img.src = e.target.result;
+            img.classList.remove('hidden');
+            label.querySelector('.avatar-placeholder').classList.add('hidden');
+            label.dataset.photo = e.target.result;
+        };
+        reader.readAsDataURL(input.files[0]);
+    };
+</script>
 </body>
 </html>
