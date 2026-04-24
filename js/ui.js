@@ -416,6 +416,7 @@ const app = {
         else t = Engine.generateRey(allPlayers, s.courts, s.courtNames, s.options);
         
         t.name = s.name;
+        t.options = s.options || {};
         this.state.currentTournament = t;
         this.state.currentTournament.matches = this.generateMatches();
 
@@ -503,14 +504,17 @@ const app = {
         const courtNames = Array.from(document.querySelectorAll('.court-name-input')).map((i, idx) => i.value || `PISTA ${idx + 1}`);
         const options = {
             americanoType: document.getElementById('input-americano-type')?.value || 'individual',
-            scoreType: document.getElementById('input-score-type')?.value || 'normal'
+            scoreType: document.getElementById('input-score-type')?.value || 'normal',
+            matchTime: parseInt(document.getElementById('input-match-time')?.value) || 15
         };
         let t;
         const mode = this.state.mode;
         if (mode === 'americano') t = Engine.generateAmericano(players, courts, courtNames, options);
         else if (mode === 'robin') t = Engine.generateRobin(players, courts, courtNames, options);
         else t = Engine.generateRey(players, courts, courtNames, options);
+        
         t.name = name;
+        t.options = options;
         this.state.currentTournament = t;
         const initialMatches = this.generateMatches();
         if (!initialMatches.length) return alert('Error generando encuentros. Verifica la configuración.');
