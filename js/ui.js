@@ -130,7 +130,7 @@ const app = {
         this.updateCourtInputs();
     },
 
-    /* Actualizar canchas Y ajustar cantidad de jugadores (4 por cancha) */
+    /* Actualizar canchas Y ajustar cantidad de jugadores BIDIRECCIONAL */
     updateCourtInputs() {
         const container = document.getElementById('court-names-container');
         if (!container) return;
@@ -146,20 +146,26 @@ const app = {
             container.appendChild(div);
         }
 
-        // Mostrar mensaje de jugadores necesarios
+        // Hint
         const hint = document.getElementById('players-needed-hint');
         if (hint) hint.innerText = `Se necesitan mínimo ${needed} jugadores (${count} cancha${count > 1 ? 's' : ''} × 4)`;
 
-        // Ajustar filas de jugadores
+        // Guardar datos de jugadores existentes
         const list = document.getElementById('players-list');
         if (!list) return;
-        const current = list.querySelectorAll('.player-row-card').length;
-        if (current < needed) {
-            for (let i = current; i < needed; i++) this.addPlayerRow();
+        const existing = Array.from(list.querySelectorAll('.player-row-card')).map(row => ({
+            name:  row.querySelector('input[type="text"]')?.value || '',
+            photo: row.querySelector('.photo-upload-label')?.dataset?.photo || null
+        }));
+
+        // Reconstruir exactamente la cantidad necesaria, preservando datos
+        list.innerHTML = '';
+        for (let i = 0; i < needed; i++) {
+            this.addPlayerRow(existing[i] || null);
         }
     },
 
-    addPlayerRow() {
+    addPlayerRow(data = null) {
         const list = document.getElementById('players-list');
         if (!list) return;
         const div = document.createElement('div');
@@ -170,8 +176,16 @@ const app = {
                 <img class="player-photo-thumb hidden">
                 <input type="file" accept="image/*" class="hidden" onchange="app.handlePhotoUpload(this)">
             </label>
-            <input type="text" placeholder="NOMBRE JUGADOR">
+            <input type="text" placeholder="NOMBRE JUGADOR" value="${data?.name || ''}">
             <button onclick="this.parentElement.remove()">×</button>`;
+        // Restaurar foto si había
+        if (data?.photo) {
+            const label = div.querySelector('.photo-upload-label');
+            const img = div.querySelector('img');
+            img.src = data.photo; img.classList.remove('hidden');
+            label.querySelector('.avatar-placeholder').classList.add('hidden');
+            label.dataset.photo = data.photo;
+        }
         list.appendChild(div);
     },
 
@@ -400,19 +414,25 @@ const app = {
                     </div>`;
             }
         } else {
-            const renderMatch = (m, live) => `
-                <div class="card" style="padding:18px;border-left:5px solid ${live ? 'var(--primary)' : 'transparent'};${!live ? 'opacity:0.5;' : 'cursor:pointer;'}"
-                    ${live ? `onclick="app.enterScore(${JSON.stringify(m.id)})"` : ''}>
+            const renderMatch = (m, live) => {
+                const liveStyle = live
+                    ? `border: 2px solid var(--primary); background: rgba(0,230,118,0.05); cursor:pointer; box-shadow: 0 4px 24px rgba(0,230,118,0.15);`
+                    : `border: 1px solid var(--glass-border); opacity:0.4;`;
+                return `
+                <div class="card" style="padding:18px;${liveStyle}" ${live ? `onclick="app.enterScore(${JSON.stringify(m.id)})"` : ''}>
                     <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:900;margin-bottom:12px;letter-spacing:1px;">
                         <span style="color:var(--text-dim);">${m.court.toUpperCase()}</span>
-                        <span style="color:${live ? 'var(--primary)' : 'var(--text-dim)'};">${live ? '● EN VIVO' : '✓ TERMINADO'}</span>
+                        ${live
+                            ? `<span style="color:var(--primary);display:flex;align-items:center;gap:5px;"><span class="live-dot"></span>EN VIVO</span>`
+                            : `<span style="color:var(--text-dim);">✓ TERMINADO</span>`}
                     </div>
                     <div style="display:flex;align-items:center;gap:10px;">
                         <div style="flex:1;text-align:right;font-weight:800;font-size:14px;line-height:1.5;">${this.getPairDisplay(t, m.team1)}</div>
-                        <div style="min-width:52px;text-align:center;font-size:${!live ? '22px' : '13px'};font-weight:900;color:var(--primary);">${!live ? `${m.score1}-${m.score2}` : 'VS'}</div>
+                        <div style="min-width:52px;text-align:center;font-size:${!live ? '22px' : '14px'};font-weight:900;color:${live ? 'var(--primary)' : 'var(--text-main)'}; background:${live ? 'transparent' : 'transparent'};">${!live ? `${m.score1}-${m.score2}` : 'VS'}</div>
                         <div style="flex:1;font-weight:800;font-size:14px;line-height:1.5;">${this.getPairDisplay(t, m.team2)}</div>
                     </div>
                 </div>`;
+            };
 
             mc.innerHTML =
                 pending.map(m => renderMatch(m, true)).join('') +
@@ -542,7 +562,7 @@ const app = {
                     </div>
                     ${scoreHTML}
                     ${progressHTML}
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin-top:8px;">
+                    <div style="display:grid;grid-template-columns:3fr 7fr;gap:8px;width:100%;margin-top:8px;">
                         <button class="score-btn minus-btn" onclick="app.subtractPoint(${teamNum})" title="Corregir -1">−1</button>
                         <button class="score-btn ${isGold ? 'gold-point' : ''}" onclick="app.addPoint(${teamNum})">${isGold ? '⚡ ORO' : '+1'}</button>
                     </div>
@@ -707,18 +727,16 @@ const app = {
                 </div>
             </div>
 
-            <!-- Ranking del torneo con subtabs -->
-            <div class="card" style="margin-bottom:16px;">
-                <h4 class="label-tag" style="margin-bottom:14px;">ESTADÍSTICAS DEL TORNEO</h4>
-                <div class="rank-tabs" id="past-rank-tabs" style="margin-bottom:16px;">
-                    <div class="rank-tab active" data-pmode="score"  onclick="app.setPastRankMode('score')">PUNTOS</div>
-                    <div class="rank-tab" data-pmode="wins"   onclick="app.setPastRankMode('wins')">TRIUNFOS</div>
-                    <div class="rank-tab" data-pmode="effect" onclick="app.setPastRankMode('effect')">EFICACIA</div>
-                    <div class="rank-tab" data-pmode="diff"   onclick="app.setPastRankMode('diff')">DIFER.</div>
-                    <div class="rank-tab" data-pmode="avg"    onclick="app.setPastRankMode('avg')">PROM.</div>
-                </div>
-                <div id="past-ranking-content" style="display:flex;flex-direction:column;gap:10px;"></div>
+            <!-- Ranking del torneo con subtabs — mismo estilo que global -->
+            <h3 style="font-size:11px;font-weight:900;color:var(--text-dim);text-transform:uppercase;letter-spacing:2px;margin:24px 0 12px;">ESTADÍSTICAS DEL TORNEO</h3>
+            <div class="rank-tabs" id="past-rank-tabs" style="flex-wrap:wrap;margin-bottom:14px;">
+                <div class="rank-tab active" data-pmode="score"  onclick="app.setPastRankMode('score')">🏅 PUNTOS</div>
+                <div class="rank-tab" data-pmode="wins"   onclick="app.setPastRankMode('wins')">🏆 TRIUNFOS</div>
+                <div class="rank-tab" data-pmode="effect" onclick="app.setPastRankMode('effect')">⚡ EFICACIA</div>
+                <div class="rank-tab" data-pmode="diff"   onclick="app.setPastRankMode('diff')">💥 DIFER.</div>
+                <div class="rank-tab" data-pmode="avg"    onclick="app.setPastRankMode('avg')">📈 PROM.</div>
             </div>
+            <div id="past-ranking-content" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;"></div>
 
             <!-- Partidos -->
             <div class="card">
