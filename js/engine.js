@@ -13,11 +13,25 @@ const Engine = {
         let allPossibleMatches = [];
 
         if (americanoType === 'individual') {
-            // Generar todos los pares posibles
+            // Separar jugadores por posición
+            const drives = players.filter(p => p.position === 'drive').map(p => p.id);
+            const reveses = players.filter(p => p.position === 'reves').map(p => p.id);
+            
+            // Por seguridad, si alguien no tiene posición (ej. historial viejo), lo repartimos
+            const unknown = players.filter(p => p.position !== 'drive' && p.position !== 'reves').map(p => p.id);
+            unknown.forEach(id => {
+                if (drives.length <= reveses.length) drives.push(id);
+                else reveses.push(id);
+            });
+
+            // Generar todos los pares posibles (1 Drive + 1 Revés)
             const pairs = [];
-            for (let i = 0; i < ids.length; i++)
-                for (let j = i + 1; j < ids.length; j++)
-                    pairs.push([ids[i], ids[j]]);
+            for (let d of drives) {
+                for (let r of reveses) {
+                    pairs.push([d, r]);
+                }
+            }
+
             // Generar todos los cruces únicos (par vs par sin jugadores comunes)
             for (let i = 0; i < pairs.length; i++)
                 for (let j = i + 1; j < pairs.length; j++)

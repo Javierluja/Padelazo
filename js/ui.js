@@ -229,6 +229,7 @@ const app = {
         const existing = Array.from(list.querySelectorAll('.player-row-card')).map(row => ({
             name:  row.querySelector('input[type="text"]')?.value || '',
             photo: row.querySelector('.photo-upload-label')?.dataset?.photo || null,
+            position: row.querySelector('.player-position-select')?.value || 'drive',
             playerId: row.dataset.playerId || null
         }));
 
@@ -259,6 +260,10 @@ const app = {
                 <input type="file" accept="image/*" class="hidden" onchange="app.handlePhotoUpload(this)">
             </label>
             <input type="text" placeholder="NOMBRE JUGADOR" value="${data?.name || ''}">
+            <select class="player-position-select" style="margin:0 8px;padding:4px;border-radius:6px;background:var(--bg-dark);color:var(--text-main);border:1px solid var(--glass-border);">
+                <option value="drive" ${data?.position === 'drive' ? 'selected' : ''}>Derecho</option>
+                <option value="reves" ${data?.position === 'reves' ? 'selected' : ''}>Revés</option>
+            </select>
             <button onclick="this.parentElement.remove()">×</button>`;
         // Restaurar foto si había
         if (data?.photo) {
@@ -290,6 +295,7 @@ const app = {
             .map((row, i) => ({
                 id: i, name: row.querySelector('input[type="text"]').value.trim(),
                 photo: row.querySelector('.photo-upload-label').dataset.photo || null,
+                position: row.querySelector('.player-position-select')?.value || 'drive',
                 playerId: row.dataset.playerId || null,
                 score: 0, wins: 0, matchesPlayed: 0, pointsAgainst: 0,
                 totalSecondsOnCourt: 0, currentStreak: 0, bestStreak: 0
@@ -566,6 +572,7 @@ const app = {
         const playerData = { 
             name, 
             photo, 
+            position: document.getElementById('join-player-position')?.value || 'drive',
             deviceId: Storage.getDeviceId(),
             playerId: this.identity?.playerId || null
         };
@@ -598,6 +605,15 @@ const app = {
         const name = document.getElementById('input-tournament-name').value.trim() || 'Torneo Padelazo';
         const players = this.collectPlayersFromForm();
         if (players.length < 4) return alert('¡Mínimo 4 jugadores!');
+
+        if (this.state.mode === 'americano' && document.getElementById('input-americano-type')?.value === 'individual') {
+            const drives = players.filter(p => p.position === 'drive');
+            const reveses = players.filter(p => p.position === 'reves');
+            if (drives.length !== reveses.length) {
+                return alert(`¡Desequilibrio de posiciones!\nHay ${drives.length} Derechos y ${reveses.length} Reveses.\nDeben ser exactamente la misma cantidad.`);
+            }
+        }
+
         this.launchTournament(players, name);
     },
 
