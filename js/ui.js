@@ -228,11 +228,19 @@ const app = {
         if (!list) return;
         const existing = Array.from(list.querySelectorAll('.player-row-card')).map(row => ({
             name:  row.querySelector('input[type="text"]')?.value || '',
-            photo: row.querySelector('.photo-upload-label')?.dataset?.photo || null
+            photo: row.querySelector('.photo-upload-label')?.dataset?.photo || null,
+            playerId: row.dataset.playerId || null
         }));
 
         // Reconstruir exactamente la cantidad necesaria, preservando datos
         list.innerHTML = '';
+        if (existing.length === 0 && this.identity) {
+            existing.push({
+                name: this.identity.name,
+                photo: this.identity.photo,
+                playerId: this.identity.playerId || null
+            });
+        }
         for (let i = 0; i < needed; i++) {
             this.addPlayerRow(existing[i] || null);
         }
@@ -243,6 +251,7 @@ const app = {
         if (!list) return;
         const div = document.createElement('div');
         div.className = 'player-row-card';
+        if (data && data.playerId) div.dataset.playerId = data.playerId;
         div.innerHTML = `
             <label class="photo-upload-label">
                 <div class="avatar-placeholder">${this.avatarSVG()}</div>
@@ -281,6 +290,7 @@ const app = {
             .map((row, i) => ({
                 id: i, name: row.querySelector('input[type="text"]').value.trim(),
                 photo: row.querySelector('.photo-upload-label').dataset.photo || null,
+                playerId: row.dataset.playerId || null,
                 score: 0, wins: 0, matchesPlayed: 0, pointsAgainst: 0,
                 totalSecondsOnCourt: 0, currentStreak: 0, bestStreak: 0
             })).filter(p => p.name);
@@ -327,6 +337,13 @@ const app = {
                 localPlayers: localPlayers.map(p => ({ name: p.name, photo: p.photo }))
             };
             Storage.save(this.state);
+            
+            // Agregar a Mis Torneos para que el organizador también lo tenga
+            let joined = Storage.loadJoinedTournaments ? Storage.loadJoinedTournaments() : [];
+            if (!joined.find(x => x.code === code)) {
+                joined.push({ code: code, name: name, date: Date.now() });
+                if (Storage.saveJoinedTournaments) Storage.saveJoinedTournaments(joined);
+            }
 
             this.resumeInviteRoom();
         } catch(e) {
@@ -1306,6 +1323,42 @@ const app = {
         } else {
             this.showView('home');
             this.renderHome();
+        }
+    },
+
+    async loginWithCode() {
+        const code = prompt("Ingresa tu ID de Jugador (ej: P-A1B2):");
+        if (!code || !code.trim()) return;
+        const pId = code.trim().toUpperCase();
+        
+        const btn = document.querySelector('#view-identity .btn-outline');
+        if (btn) btn.innerText = 'Buscando...';
+        
+        try {
+            const profile = await FirebaseDB.getPlayerProfile(pId);
+            if (!profile) {
+                alert("No se encontró ese ID de jugador. Verifica y vuelve a intentarlo.");
+                if (btn) btn.innerText = '¿Ya tienes un ID? Iniciar Sesión';
+                return;
+            }
+            
+            this.identity = { name: profile.name, photo: profile.photo || null, deviceId: Storage.getDeviceId(), playerId: pId };
+            Storage.saveIdentity(this.identity);
+            
+            alert("¡Bienvenido de nuevo, " + profile.name + "!");
+            
+            this.state = Storage.load();
+            this.updateCourtInputs();
+            if (this.state.currentTournament) {
+                this.showView('dashboard');
+                this.renderDashboard();
+            } else {
+                this.showView('home');
+                this.renderHome();
+            }
+        } catch(e) {
+            alert("Error: " + e.message);
+            if (btn) btn.innerText = '¿Ya tienes un ID? Iniciar Sesión';
         }
     },
 
