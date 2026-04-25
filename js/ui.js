@@ -259,12 +259,12 @@ const app = {
                 <img class="player-photo-thumb hidden">
                 <input type="file" accept="image/*" class="hidden" onchange="app.handlePhotoUpload(this)">
             </label>
-            <input type="text" placeholder="NOMBRE JUGADOR" value="${data?.name || ''}">
-            <select class="player-position-select" style="margin:0 8px;padding:4px;border-radius:6px;background:var(--bg-dark);color:var(--text-main);border:1px solid var(--glass-border);">
-                <option value="drive" ${data?.position === 'drive' ? 'selected' : ''}>Derecho</option>
+            <input type="text" placeholder="NOMBRE JUGADOR" value="${data?.name || ''}" style="flex:1; min-width:80px; margin-right:4px;">
+            <select class="player-position-select" style="max-width:75px; padding:6px 2px; font-size:11px; font-weight:800; border-radius:6px; background:var(--bg-dark); color:var(--text-main); border:1px solid var(--primary); outline:none;">
+                <option value="drive" ${data?.position === 'drive' ? 'selected' : ''}>Drive</option>
                 <option value="reves" ${data?.position === 'reves' ? 'selected' : ''}>Revés</option>
             </select>
-            <button onclick="this.parentElement.remove()">×</button>`;
+            <button onclick="this.parentElement.remove()" style="margin-left:4px;">×</button>`;
         // Restaurar foto si había
         if (data?.photo) {
             const label = div.querySelector('.photo-upload-label');
@@ -340,7 +340,7 @@ const app = {
 
             this.state.activeSession = {
                 code, name, type, scoreType, courts, courtNames, options,
-                localPlayers: localPlayers.map(p => ({ name: p.name, photo: p.photo }))
+                localPlayers: localPlayers.map(p => ({ name: p.name, photo: p.photo, position: p.position }))
             };
             Storage.save(this.state);
             
