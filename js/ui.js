@@ -204,14 +204,6 @@ const app = {
 
     handlePhotoUpload(input) {
         if (!input.files?.[0]) return;
-        new FileReader().onload = (e) => {
-            const label = input.parentElement;
-            const img = label.querySelector('img');
-            img.src = e.target.result;
-            img.classList.remove('hidden');
-            label.querySelector('.avatar-placeholder').classList.add('hidden');
-            label.dataset.photo = e.target.result;
-        };
         const reader = new FileReader();
         reader.onload = (e) => {
             const label = input.parentElement;
@@ -870,19 +862,28 @@ const app = {
         const m = this.state.currentTournament.matches.find(x => String(x.id) === String(this.activeMatch.id));
         m.score1 = s1; m.score2 = s2; m.duration = this.matchSeconds;
 
+        // Determinar resultado: victoria, derrota o empate
+        const isDraw = s1 === s2;
         const updateP = (ids, won, pFor, pAgainst, secs) => {
             ids.forEach(id => {
                 const p = this.state.currentTournament.players.find(x => x.id === id);
                 if (!p) return;
-                p.score += pFor; p.matchesPlayed++;
-                if (won) { p.wins++; p.currentStreak = (p.currentStreak||0)+1; if (p.currentStreak > (p.bestStreak||0)) p.bestStreak = p.currentStreak; }
-                else p.currentStreak = 0;
-                p.pointsAgainst = (p.pointsAgainst||0) + pAgainst;
-                p.totalSecondsOnCourt = (p.totalSecondsOnCourt||0) + secs;
+                p.score += pFor;
+                p.matchesPlayed++;
+                if (won) {
+                    p.wins++;
+                    p.currentStreak = (p.currentStreak || 0) + 1;
+                    if (p.currentStreak > (p.bestStreak || 0)) p.bestStreak = p.currentStreak;
+                } else if (!isDraw) {
+                    // Solo reiniciar racha en derrota, no en empate
+                    p.currentStreak = 0;
+                }
+                p.pointsAgainst = (p.pointsAgainst || 0) + pAgainst;
+                p.totalSecondsOnCourt = (p.totalSecondsOnCourt || 0) + secs;
             });
         };
-        updateP(m.team1, s1 > s2, s1, s2, this.matchSeconds);
-        updateP(m.team2, s2 > s1, s2, s1, this.matchSeconds);
+        updateP(m.team1, !isDraw && s1 > s2, s1, s2, this.matchSeconds);
+        updateP(m.team2, !isDraw && s2 > s1, s2, s1, this.matchSeconds);
 
         this.stopTimer();
         Storage.save(this.state);

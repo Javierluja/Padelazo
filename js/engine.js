@@ -119,7 +119,8 @@ const Engine = {
 
         while (matches.length < state.courtCount && idx < state.allPossibleMatches.length) {
             const m = state.allPossibleMatches[idx];
-            const k1 = m.team1.sort().join(','), k2 = m.team2.sort().join(',');
+            // Usar copias para el sort y no mutar el array original
+            const k1 = [...m.team1].sort().join(','), k2 = [...m.team2].sort().join(',');
             if (!teamsThisRound.has(k1) && !teamsThisRound.has(k2)) {
                 matches.push(this.createMatchObj(state, m.team1, m.team2, matches.length));
                 teamsThisRound.add(k1); teamsThisRound.add(k2);
@@ -215,7 +216,7 @@ const Engine = {
                 };
             }
             const gs = globalStats.players[p.name];
-            gs.wins += p.wins;
+            gs.wins  += p.wins;
             gs.losses += (p.matchesPlayed - p.wins);
             gs.pointsFor += p.score;
             gs.pointsAgainst += (p.pointsAgainst || 0);
@@ -224,12 +225,8 @@ const Engine = {
             gs.totalSecondsOnCourt += (p.totalSecondsOnCourt || 0);
 
             // Racha: actualizar basado en desempeño en el torneo
-            if (p.wins > 0 && p.wins > (p.matchesPlayed - p.wins)) {
-                gs.currentStreak += p.wins;
-                if (gs.currentStreak > gs.bestStreak) gs.bestStreak = gs.currentStreak;
-            } else {
-                gs.currentStreak = 0;
-            }
+            if (p.bestStreak > gs.bestStreak) gs.bestStreak = p.bestStreak;
+            gs.currentStreak = p.currentStreak || 0;
         });
 
         // Podios
