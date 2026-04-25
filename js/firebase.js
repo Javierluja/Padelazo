@@ -10,13 +10,14 @@ const FirebaseDB = {
         if (this.initialized) return true;
         try {
             const config = {
-                apiKey: "AIzaSyCkGDE4VJv7MpLOGOlKKmNHAhYUe2obuIE",
-                authDomain: "padelazo-app.firebaseapp.com",
-                databaseURL: "https://padelazo-app-default-rtdb.firebaseio.com",
-                projectId: "padelazo-app",
-                storageBucket: "padelazo-app.firebasestorage.app",
-                messagingSenderId: "627437540112",
-                appId: "1:627437540112:web:41e1d97bdb1f2bb7ffcb95"
+                apiKey: "AIzaSyDyya4wfg9Js7VmuD-mz3dIYMAhE3_d1rM",
+                authDomain: "padelazo-959f9.firebaseapp.com",
+                databaseURL: "https://padelazo-959f9-default-rtdb.firebaseio.com",
+                projectId: "padelazo-959f9",
+                storageBucket: "padelazo-959f9.firebasestorage.app",
+                messagingSenderId: "511065915043",
+                appId: "1:511065915043:web:ad96210cee538520308916",
+                measurementId: "G-X6D2JM70NV"
             };
             if (!firebase.apps || !firebase.apps.length) {
                 firebase.initializeApp(config);
