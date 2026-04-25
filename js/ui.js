@@ -108,6 +108,12 @@ const app = {
                     ? `<img src="${this.identity.photo}" style="width:100%;height:100%;object-fit:cover;">`
                     : this.avatarSVG();
             }
+            
+            const btnStats = document.getElementById('btn-my-stats');
+            if (btnStats) {
+                if (this.identity.playerId) btnStats.classList.remove('hidden');
+                else btnStats.classList.add('hidden');
+            }
         }
 
         const ac = document.getElementById('active-tournament-card');
@@ -139,6 +145,30 @@ const app = {
                     </div>
                 </div>`;
         } else { ac.innerHTML = ''; }
+
+        // Mostrar torneos unidos
+        const joinedContainer = document.getElementById('joined-tournaments-card');
+        if (joinedContainer && Storage.loadJoinedTournaments) {
+            const joined = Storage.loadJoinedTournaments();
+            if (joined.length > 0) {
+                joinedContainer.innerHTML = `
+                    <p class="label-tag" style="margin-bottom:12px;">👁 MIS TORNEOS (ESPECTADOR)</p>
+                    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;">
+                        ${joined.map(j => `
+                            <div class="card card-row" style="padding:14px;border:1px solid var(--glass-border);" onclick="app.showSpectatorView('${j.code}')">
+                                <div style="flex:1;">
+                                    <h4 style="margin:0;font-size:15px;line-height:1.2;">${j.name}</h4>
+                                    <p style="margin:0;font-size:11px;color:var(--text-dim);margin-top:4px;">Código: <b style="color:var(--primary);">${j.code}</b> • ${new Date(j.date).toLocaleDateString()}</p>
+                                </div>
+                                <div style="font-size:18px;color:var(--primary);">→</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                joinedContainer.innerHTML = '';
+            }
+        }
 
         const hc = document.getElementById('history-container');
         if (!this.state.history.length) {
@@ -515,11 +545,26 @@ const app = {
         const photo = document.getElementById('join-photo-label')?.dataset.photo || null;
         const btn = document.getElementById('btn-join-submit');
         if (btn) btn.innerText = 'Inscribiendo...';
-        const result = await FirebaseDB.joinSession(window._joinCode, { name, photo });
+        
+        const playerData = { 
+            name, 
+            photo, 
+            deviceId: Storage.getDeviceId(),
+            playerId: this.identity?.playerId || null
+        };
+        
+        const result = await FirebaseDB.joinSession(window._joinCode, playerData);
         if (result.success) {
             // Guardar / actualizar identidad del jugador
-            this.identity = { name, photo, deviceId: Storage.getDeviceId() };
+            this.identity = { name, photo, deviceId: Storage.getDeviceId(), playerId: playerData.playerId };
             Storage.saveIdentity(this.identity);
+
+            // Guardar en historial de torneos unidos
+            let joined = Storage.loadJoinedTournaments ? Storage.loadJoinedTournaments() : [];
+            if (!joined.find(x => x.code === window._joinCode)) {
+                joined.push({ code: window._joinCode, name: result.sessionName, date: Date.now() });
+                if (Storage.saveJoinedTournaments) Storage.saveJoinedTournaments(joined);
+            }
 
             document.getElementById('join-form')?.classList.add('hidden');
             document.getElementById('join-success')?.classList.remove('hidden');
@@ -555,13 +600,26 @@ const app = {
         
         t.name = name;
         t.options = options;
+        if (this.state.activeSession?.code) {
+            t.code = this.state.activeSession.code;
+        }
         this.state.currentTournament = t;
         const initialMatches = this.generateMatches();
         if (!initialMatches.length) return alert('Error generando encuentros. Verifica la configuración.');
         this.state.currentTournament.matches = initialMatches;
         Storage.save(this.state);
+        this.syncTournament();
         this.renderDashboard();
         this.showView('dashboard');
+    },
+
+    syncTournament() {
+        const t = this.state.currentTournament;
+        if (!t || !t.code) return;
+        FirebaseDB.syncTournamentState(t.code, {
+            activeMatches: t.matches,
+            leaderboard: t.players
+        });
     },
 
     generateMatches() {
@@ -947,6 +1005,7 @@ const app = {
 
         this.stopTimer();
         Storage.save(this.state);
+        this.syncTournament();
         this.renderDashboard();
         this.showView('dashboard');
     },
@@ -956,6 +1015,7 @@ const app = {
         if (!newM.length) { this.renderDashboard(); return; }
         this.state.currentTournament.matches.push(...newM);
         Storage.save(this.state);
+        this.syncTournament();
         this.renderDashboard();
     },
 
@@ -966,6 +1026,7 @@ const app = {
         if (newM.length) {
             this.state.currentTournament.matches.push(...newM);
             Storage.save(this.state);
+            this.syncTournament();
             this.renderDashboard();
         }
     },
@@ -973,6 +1034,34 @@ const app = {
     confirmEndTournament() {
         if (confirm('¿Cerrar el torneo y guardar en historial?')) {
             Engine.updateGlobalStats(this.state.globalStats, this.state.currentTournament);
+            
+            // Sincronizar stats en la nube para jugadores con ID
+            const statsArray = this.state.currentTournament.players.map(p => ({
+                playerId: p.playerId || null,
+                wins: p.wins || 0,
+                losses: (p.matchesPlayed || 0) - (p.wins || 0),
+                pointsFor: p.score || 0,
+                pointsAgainst: p.pointsAgainst || 0,
+                firstPlaces: 0, // Se calcula después globalmente, pero por ahora en Firebase lo sumamos si es top
+                secondPlaces: 0,
+                thirdPlaces: 0,
+                totalMatches: p.matchesPlayed || 0,
+                bestStreak: p.bestStreak || 0
+            }));
+            
+            // Asignar medallas a los top 3 para enviarlos a Firebase
+            const sorted = [...this.state.currentTournament.players].sort((a,b) => b.score - a.score);
+            if (sorted[0]) { const s = statsArray.find(x => x.playerId === sorted[0].playerId); if (s) s.firstPlaces = 1; }
+            if (sorted[1]) { const s = statsArray.find(x => x.playerId === sorted[1].playerId); if (s) s.secondPlaces = 1; }
+            if (sorted[2]) { const s = statsArray.find(x => x.playerId === sorted[2].playerId); if (s) s.thirdPlaces = 1; }
+            
+            FirebaseDB.syncPlayerStats(statsArray.filter(x => x.playerId));
+            
+            // También podemos cerrar la sala en firebase si existe
+            if (this.state.currentTournament.code) {
+                FirebaseDB.closeSession(this.state.currentTournament.code);
+            }
+
             this.state.history.unshift(this.state.currentTournament);
             this.state.currentTournament = null;
             Storage.save(this.state);
@@ -1071,7 +1160,6 @@ const app = {
             effect: (a,b)=>b.rate-a.rate,
             streak: (a,b)=>b.bestStreak-a.bestStreak,
             diff:   (a,b)=>b.diff-a.diff,
-            time:   (a,b)=>(b.totalSecondsOnCourt||0)-(a.totalSecondsOnCourt||0),
             played: (a,b)=>b.totalMatches-a.totalMatches
         };
         players.sort(sortFns[this.globalRankMode] || sortFns.cups);
@@ -1092,7 +1180,6 @@ const app = {
             effect: p=>({ v:`${p.rate}%`, l:'EFIC.' }),
             streak: p=>({ v:p.bestStreak, l:'RACHA' }),
             diff:   p=>({ v:(p.diff>0?'+':'')+p.diff, l:'DIFER.' }),
-            time:   p=>({ v:p.timeStr, l:'TIEMPO' }),
             played: p=>({ v:p.totalMatches, l:'PARTIDOS' })
         };
         container.innerHTML = players.map((p, i) => {
@@ -1118,13 +1205,98 @@ const app = {
         return h > 0 ? `${h}h ${m}m` : `${m}m`;
     },
 
+    /* ===================== MY STATS (CLOUD) ===================== */
+    async showMyStats() {
+        if (!this.identity || !this.identity.playerId) return alert('No tienes un ID de jugador vinculado.');
+        this.showView('my-stats');
+        const container = document.getElementById('my-stats-content');
+        container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-dim);">
+            ${this.padelSVG(40, '#333')}<br><br>Cargando estadísticas desde la nube...</div>`;
+        
+        const profile = await FirebaseDB.getPlayerProfile(this.identity.playerId);
+        if (!profile || !profile.globalStats) {
+            container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-dim);">No hay estadísticas registradas aún.</div>`;
+            return;
+        }
+
+        const s = profile.globalStats;
+        const rate = s.totalMatches ? Math.round((s.wins / s.totalMatches) * 100) : 0;
+        
+        container.innerHTML = `
+            <div class="card" style="text-align:center;margin-bottom:20px;border:1px solid var(--primary);">
+                <div style="font-size:10px;color:var(--primary);font-weight:900;letter-spacing:2px;margin-bottom:4px;">ID DE JUGADOR</div>
+                <div style="font-size:24px;font-weight:900;letter-spacing:3px;">${this.identity.playerId}</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                <div class="card" style="text-align:center;padding:16px 10px;">
+                    <div style="font-size:26px;margin-bottom:4px;">🏆</div>
+                    <div style="font-size:22px;font-weight:900;color:var(--primary);">${s.firstPlaces}</div>
+                    <div style="font-size:10px;color:var(--text-dim);font-weight:800;">CAMPEÓN</div>
+                </div>
+                <div class="card" style="text-align:center;padding:16px 10px;">
+                    <div style="font-size:26px;margin-bottom:4px;">🎖</div>
+                    <div style="font-size:22px;font-weight:900;color:var(--primary);">${(s.secondPlaces||0)+(s.thirdPlaces||0)}</div>
+                    <div style="font-size:10px;color:var(--text-dim);font-weight:800;">OTROS PODIOS</div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom:12px;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid var(--glass-border);padding-bottom:12px;">
+                    <div>
+                        <div style="font-size:11px;color:var(--text-dim);font-weight:800;">EFICACIA</div>
+                        <div style="font-size:20px;font-weight:900;">${rate}%</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:11px;color:var(--text-dim);font-weight:800;">PARTIDOS</div>
+                        <div style="font-size:20px;font-weight:900;">${s.totalMatches}</div>
+                    </div>
+                </div>
+                
+                <div style="display:flex;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid var(--glass-border);padding-bottom:12px;">
+                    <div>
+                        <div style="font-size:11px;color:var(--text-dim);font-weight:800;">VICTORIAS</div>
+                        <div style="font-size:18px;font-weight:900;color:var(--primary);">${s.wins}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:11px;color:var(--text-dim);font-weight:800;">DERROTAS</div>
+                        <div style="font-size:18px;font-weight:900;color:var(--danger);">${s.losses}</div>
+                    </div>
+                </div>
+
+                <div style="display:flex;justify-content:space-between;">
+                    <div>
+                        <div style="font-size:11px;color:var(--text-dim);font-weight:800;">MEJOR RACHA</div>
+                        <div style="font-size:18px;font-weight:900;">🔥 ${s.bestStreak||0}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:11px;color:var(--text-dim);font-weight:800;">TORNEOS JUGADOS</div>
+                        <div style="font-size:18px;font-weight:900;">🎾 ${s.tournamentsPlayed||0}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
     /* ===================== IDENTITY ===================== */
-    saveIdentityForm() {
+    async saveIdentityForm() {
         const name = document.getElementById('identity-name-input')?.value?.trim();
         if (!name) return alert('Escribe cómo te llaman en la cancha 🎾');
+        const btn = document.querySelector('#view-identity .btn-primary');
+        if (btn) btn.innerText = 'Guardando...';
+        
         const photo = document.getElementById('identity-photo-label')?.dataset?.photo || null;
-        this.identity = { name, photo, deviceId: Storage.getDeviceId() };
+        let pId = this.identity?.playerId || null;
+        
+        if (!pId) {
+            pId = await FirebaseDB.createPlayerProfile({ name, photo });
+        }
+        
+        this.identity = { name, photo, deviceId: Storage.getDeviceId(), playerId: pId };
         Storage.saveIdentity(this.identity);
+        
+        if (btn) btn.innerText = 'Registrarme';
+        
         // Continuar al home normalmente
         this.state = Storage.load();
         this.updateCourtInputs();
@@ -1194,27 +1366,77 @@ const app = {
             }
             const players = session.players ? Object.values(session.players) : [];
             const isOpen  = session.status === 'open';
-            content.innerHTML = `
+            
+            let html = `
                 <div class="card" style="text-align:center;margin-bottom:20px;border:1px solid ${isOpen ? 'var(--primary)' : 'var(--glass-border)'};">
                     <h3 style="font-size:20px;margin-bottom:8px;">${session.name}</h3>
                     <p style="font-size:12px;color:${isOpen ? 'var(--primary)' : 'var(--text-dim)'};">
-                        ${isOpen ? '⏳ Inscripciones abiertas' : '🎾 Torneo en curso / cerrado'}
+                        ${isOpen ? '⏳ Inscripciones abiertas' : '🎾 Torneo en curso'}
                     </p>
                     <p style="font-size:11px;color:var(--text-dim);margin-top:8px;">
                         Código: <strong style="color:var(--primary);letter-spacing:3px;">${code}</strong>
                     </p>
-                </div>
-                <h4 class="label-tag" style="margin-bottom:12px;">JUGADORES INSCRITOS (${players.length})</h4>
-                ${players.map(p => `
-                    <div class="spectator-player">
-                        <div style="width:36px;height:36px;border-radius:10px;overflow:hidden;background:var(--secondary);flex-shrink:0;">
-                            ${p.photo ? `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;">` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;">${this.avatarSVG()}</div>`}
+                </div>`;
+
+            if (isOpen || !session.live) {
+                const players = session.players ? Object.values(session.players) : [];
+                html += `
+                    <h4 class="label-tag" style="margin-bottom:12px;">JUGADORES INSCRITOS (${players.length})</h4>
+                    ${players.map(p => `
+                        <div class="spectator-player" style="display:flex;align-items:center;gap:12px;background:var(--secondary);padding:10px;border-radius:12px;margin-bottom:8px;border:1px solid var(--glass-border);">
+                            <div style="width:36px;height:36px;border-radius:10px;overflow:hidden;background:var(--bg-dark);flex-shrink:0;">
+                                ${p.photo ? `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;">` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;">${this.avatarSVG()}</div>`}
+                            </div>
+                            <div style="font-weight:700;">${p.name}</div>
+                            <div style="margin-left:auto;color:var(--primary);font-size:10px;font-weight:900;">✓</div>
+                        </div>`).join('')}
+                    ${!players.length ? `<div style="text-align:center;padding:30px;color:var(--text-dim);">Aún no hay jugadores inscritos.</div>` : ''}
+                `;
+            } else {
+                // Torneo en vivo
+                const live = session.live;
+                const matches = live.activeMatches || [];
+                const lb = live.leaderboard || [];
+                
+                // Extraer pending matches
+                const pending = matches.filter(m => m.score1 === null);
+                
+                html += `<h4 class="label-tag" style="margin-bottom:12px;color:var(--primary);">🔴 PARTIDOS EN VIVO</h4>`;
+                if (!pending.length) {
+                    html += `<div style="text-align:center;color:var(--text-dim);padding:20px;">Todos los partidos terminados esta ronda.</div>`;
+                } else {
+                    html += pending.map(m => {
+                        const getNames = (ids) => ids.map(id => {
+                            const p = lb.find(x => x.id === id);
+                            return p ? p.name : '?';
+                        }).join(' & ');
+                        
+                        return `
+                        <div class="card" style="margin-bottom:12px;border:1px solid var(--primary-glow);">
+                            <div style="font-size:10px;font-weight:900;color:var(--primary);letter-spacing:1px;margin-bottom:8px;">${m.court.toUpperCase()}</div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <div style="flex:1;font-weight:800;font-size:13px;text-align:right;">${getNames(m.team1)}</div>
+                                <div style="margin:0 12px;font-weight:900;color:var(--text-dim);">VS</div>
+                                <div style="flex:1;font-weight:800;font-size:13px;text-align:left;">${getNames(m.team2)}</div>
+                            </div>
+                        </div>`;
+                    }).join('');
+                }
+                
+                html += `<h4 class="label-tag" style="margin-top:24px;margin-bottom:12px;">📊 POSICIONES</h4>`;
+                lb.sort((a,b) => b.score - a.score);
+                html += lb.map((p, i) => `
+                    <div class="card" style="display:flex;align-items:center;gap:12px;padding:12px;margin-bottom:8px;">
+                        <div style="font-size:16px;font-weight:900;width:24px;text-align:center;color:var(--text-dim);">${i+1}</div>
+                        <div style="flex:1;">
+                            <div style="font-weight:800;">${p.name}</div>
+                            <div style="font-size:10px;color:var(--text-dim);">${p.matchesPlayed} PJ • ${p.wins} G</div>
                         </div>
-                        <div style="font-weight:700;">${p.name}</div>
-                        <div style="margin-left:auto;color:var(--primary);font-size:10px;font-weight:900;">✓</div>
-                    </div>`).join('')}
-                ${!players.length ? `<div style="text-align:center;padding:30px;color:var(--text-dim);">Aún no hay jugadores inscritos.</div>` : ''}
-            `;
+                        <div style="font-size:20px;font-weight:900;color:var(--primary);">${p.score}</div>
+                    </div>
+                `).join('');
+            }
+            content.innerHTML = html;
         });
     },
 
@@ -1307,6 +1529,7 @@ const app = {
 
         if (!saved) return alert('Ingresa al menos un resultado antes de guardar.');
         Storage.save(this.state);
+        this.syncTournament();
         this.setBatchMode(false);
         this.renderDashboard();
     }

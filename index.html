@@ -35,6 +35,10 @@
             </div>
             <div style="font-size:12px;color:var(--text-dim);">✎ editar</div>
         </div>
+        
+        <button id="btn-my-stats" class="btn-primary hidden" style="margin-bottom:24px;background:var(--secondary);border:1px solid var(--primary);color:var(--primary);" onclick="app.showMyStats()">
+            📊 Mis Estadísticas Globales
+        </button>
 
         <!-- Unirse por código -->
         <div class="card" style="margin-bottom:24px;">
@@ -44,6 +48,8 @@
                 <button class="btn-go" onclick="app.joinByCode()">→</button>
             </div>
         </div>
+
+        <div id="joined-tournaments-card"></div>
 
         <h2 class="section-label">Nueva Competencia</h2>
         <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:30px;">
@@ -301,9 +307,9 @@
 
             <div style="width:100%;max-width:360px;">
                 <input type="text" id="identity-name-input" class="ghost-input"
-                    placeholder="¿Cómo te llaman?" autocomplete="nickname"
+                    placeholder="dime tu nombre" autocomplete="nickname"
                     style="font-size:22px;margin-bottom:16px;">
-                <button class="btn-primary" onclick="app.saveIdentityForm()">¡ASÍ ME LLAMAN! 🎾</button>
+                <button class="btn-primary" onclick="app.saveIdentityForm()">Registrarme</button>
             </div>
             <p style="font-size:10px;color:var(--text-dim);margin:0;">Esta info se guarda en tu teléfono. Solo tú la ves.</p>
         </div>
@@ -321,16 +327,24 @@
     <!-- ===== GLOBAL STATS ===== -->
     <section id="view-stats" class="view hidden">
         <h2 style="margin-bottom:24px;text-align:center;color:var(--primary);font-weight:900;font-size:22px;">🏟 SALÓN DE LA FAMA</h2>
-        <div class="rank-tabs" style="flex-wrap:wrap;">
+        <div class="rank-tabs" style="flex-wrap:wrap; display:flex; justify-content:center; gap:8px;">
             <div class="rank-tab active" data-gmode="cups" onclick="app.setGlobalRankMode('cups')">🏆 COPAS</div>
             <div class="rank-tab" data-gmode="podios" onclick="app.setGlobalRankMode('podios')">🏅 PODIOS</div>
             <div class="rank-tab" data-gmode="effect" onclick="app.setGlobalRankMode('effect')">⚡ EFIC.</div>
             <div class="rank-tab" data-gmode="streak" onclick="app.setGlobalRankMode('streak')">🔥 RACHA</div>
             <div class="rank-tab" data-gmode="diff" onclick="app.setGlobalRankMode('diff')">💥 DIFER.</div>
-            <div class="rank-tab" data-gmode="time" onclick="app.setGlobalRankMode('time')">⏱ TIEMPO</div>
             <div class="rank-tab" data-gmode="played" onclick="app.setGlobalRankMode('played')">🎾 JUGADOS</div>
         </div>
         <div id="global-stats-content" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </section>
+
+    <!-- ===== MY STATS ===== -->
+    <section id="view-my-stats" class="view hidden">
+        <button class="btn-primary" style="margin-bottom:20px;background:var(--secondary);color:var(--text-main);" onclick="app.showView('home')">← VOLVER</button>
+        <h2 style="margin-bottom:24px;text-align:center;color:var(--primary);font-weight:900;font-size:22px;">📊 MIS ESTADÍSTICAS</h2>
+        <div id="my-stats-content" style="display:flex;flex-direction:column;gap:10px;">
+            <div style="text-align:center;padding:40px;color:var(--text-dim);">Cargando tus estadísticas desde la nube...</div>
+        </div>
     </section>
 
     <!-- BOTTOM NAV -->

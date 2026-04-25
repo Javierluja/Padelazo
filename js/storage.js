@@ -81,5 +81,19 @@ const Storage = {
         } catch(e) { return null; }
     },
 
-    clearTimer() { localStorage.removeItem(this.TIMER_KEY); }
+    clearTimer() { localStorage.removeItem(this.TIMER_KEY); },
+
+    /* -------- JOINED TOURNAMENTS -------- */
+    JOINED_KEY: 'padelazo_joined_tournaments',
+
+    saveJoinedTournaments(list) {
+        try { localStorage.setItem(this.JOINED_KEY, JSON.stringify(list)); } catch(e) {}
+    },
+
+    loadJoinedTournaments() {
+        try {
+            const d = localStorage.getItem(this.JOINED_KEY);
+            return d ? JSON.parse(d) : [];
+        } catch(e) { return []; }
+    }
 };
