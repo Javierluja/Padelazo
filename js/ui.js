@@ -420,6 +420,24 @@ const app = {
             s.localPlayers.forEach(p => this.addPlayerRow(p));
         }
 
+        // Mostrar aviso de jugadores online para evitar confusión
+        if (list) {
+            const onlinePlayers = this.currentInvitePlayers ? this.currentInvitePlayers.filter(p => !s.localPlayers?.some(lp => lp.name === p.name)) : [];
+            let onlineHint = document.getElementById('online-players-hint');
+            if (!onlineHint) {
+                onlineHint = document.createElement('div');
+                onlineHint.id = 'online-players-hint';
+                onlineHint.style.cssText = 'font-size:12px; color:var(--primary); margin-bottom:14px; text-align:center; padding:10px; background:rgba(200,255,0,0.05); border:1px dashed var(--primary); border-radius:12px;';
+                list.parentNode.insertBefore(onlineHint, list.nextSibling);
+            }
+            if (onlinePlayers.length > 0) {
+                onlineHint.innerHTML = `🌟 <b>${onlinePlayers.length} jugador${onlinePlayers.length > 1 ? 'es' : ''}</b> ya están inscritos vía QR/Enlace.<br><span style="color:var(--text-dim);font-size:10px;">(Sus nombres no son editables aquí porque ingresaron desde sus propios teléfonos)</span>`;
+                onlineHint.style.display = 'block';
+            } else {
+                onlineHint.style.display = 'none';
+            }
+        }
+
         document.getElementById('input-tournament-name').value = s.name;
         
         const courtsInput = document.getElementById('input-courts');
@@ -739,7 +757,7 @@ const app = {
                 return `
                 <div class="card" style="padding:18px;${liveStyle}" ${live ? `onclick="app.enterScore(${JSON.stringify(m.id)})"` : ''}>
                     <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:900;margin-bottom:12px;letter-spacing:1px;">
-                        <span style="color:var(--text-dim);">${m.court.toUpperCase()}</span>
+                        <span style="color:var(--text-dim);">${m.court.toUpperCase()} ${m.round ? `• RONDA ${m.round}` : ''}</span>
                         ${live
                             ? `<span style="color:var(--primary);display:flex;align-items:center;gap:5px;"><span class="live-dot"></span>EN VIVO</span>`
                             : `<span style="color:var(--text-dim);">✓ TERMINADO</span>`}
@@ -752,10 +770,17 @@ const app = {
                 </div>`;
             };
 
-            mc.innerHTML =
-                pending.map(m => renderMatch(m, true)).join('') +
-                (done.length ? `<p class="label-tag" style="margin:20px 0 10px;padding-left:4px;">TERMINADOS</p>` : '') +
-                done.map(m => renderMatch(m, false)).join('');
+            let doneHtml = '';
+            if (done.length) {
+                // Agrupar por ronda descendente
+                const rounds = [...new Set(done.map(m => m.round || 1))].sort((a,b) => b - a);
+                rounds.forEach(r => {
+                    doneHtml += `<p class="label-tag" style="margin:20px 0 10px;padding-left:4px;">TERMINADOS • RONDA ${r}</p>`;
+                    doneHtml += done.filter(m => (m.round || 1) === r).map(m => renderMatch(m, false)).join('');
+                });
+            }
+
+            mc.innerHTML = pending.map(m => renderMatch(m, true)).join('') + doneHtml;
         }
     },
 
@@ -1501,7 +1526,7 @@ const app = {
                         
                         return `
                         <div class="card" style="margin-bottom:12px;border:1px solid var(--primary-glow);">
-                            <div style="font-size:10px;font-weight:900;color:var(--primary);letter-spacing:1px;margin-bottom:8px;">${m.court.toUpperCase()}</div>
+                            <div style="font-size:10px;font-weight:900;color:var(--primary);letter-spacing:1px;margin-bottom:8px;">${m.court.toUpperCase()} ${m.round ? `• RONDA ${m.round}` : ''}</div>
                             <div style="display:flex;justify-content:space-between;align-items:center;">
                                 <div style="flex:1;font-weight:800;font-size:13px;text-align:right;">${getNames(m.team1)}</div>
                                 <div style="margin:0 12px;font-weight:900;color:var(--text-dim);">VS</div>
@@ -1566,7 +1591,7 @@ const app = {
 
         container.innerHTML = pending.map(m => `
             <div class="batch-match-card" data-match-id="${m.id}">
-                <div style="font-size:10px;font-weight:900;color:var(--primary);letter-spacing:1px;margin-bottom:8px;">${m.court.toUpperCase()}</div>
+                <div style="font-size:10px;font-weight:900;color:var(--primary);letter-spacing:1px;margin-bottom:8px;">${m.court.toUpperCase()} ${m.round ? `• RONDA ${m.round}` : ''}</div>
                 <div class="batch-score-row">
                     <div style="flex:1;text-align:right;font-weight:800;font-size:13px;line-height:1.5;">${this.getPairDisplay(t, m.team1)}</div>
                     <input type="number" class="batch-score-input batch-s1" placeholder="0" min="0">

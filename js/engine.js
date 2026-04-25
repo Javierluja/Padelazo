@@ -25,18 +25,58 @@ const Engine = {
             });
 
             // Generar todos los pares posibles (1 Drive + 1 Revés)
-            const pairs = [];
+            let pairs = [];
             for (let d of drives) {
                 for (let r of reveses) {
                     pairs.push([d, r]);
                 }
             }
 
-            // Generar todos los cruces únicos (par vs par sin jugadores comunes)
-            for (let i = 0; i < pairs.length; i++)
-                for (let j = i + 1; j < pairs.length; j++)
-                    if (!pairs[i].some(id => pairs[j].includes(id)))
-                        allPossibleMatches.push({ team1: pairs[i], team2: pairs[j] });
+            // Aleatorizar el orden para variedad
+            this.shuffleArray(pairs);
+
+            // Backtracking para encontrar un perfect matching de parejas (formar partidos)
+            const targetMatches = Math.floor(pairs.length / 2);
+            let bestMatches = [];
+            let iterations = 0;
+            const MAX_ITER = 50000;
+            
+            const findMatches = (currentPairs, currentMatches) => {
+                iterations++;
+                
+                // Si encontramos un mejor resultado, lo guardamos
+                if (currentMatches.length > bestMatches.length) {
+                    bestMatches = currentMatches;
+                }
+                
+                if (currentMatches.length === targetMatches) return true;
+                if (currentPairs.length < 2 || iterations > MAX_ITER) return false;
+                
+                // Tomar la primera pareja disponible
+                const p1 = currentPairs[0];
+                const rest = currentPairs.slice(1);
+                
+                // Buscar un oponente válido
+                for (let i = 0; i < rest.length; i++) {
+                    const p2 = rest[i];
+                    if (!p1.some(id => p2.includes(id))) {
+                        // Oponente válido encontrado, intentar este camino
+                        const nextPairs = [...rest.slice(0, i), ...rest.slice(i + 1)];
+                        const newMatches = [...currentMatches, { team1: p1, team2: p2, round: 1 }];
+                        if (findMatches(nextPairs, newMatches)) return true;
+                    }
+                }
+                
+                // Si no pudimos emparejar p1, y el límite permite que sobre una pareja (caso impar), probamos descartando p1.
+                if (targetMatches - currentMatches.length <= Math.floor(rest.length / 2)) {
+                    if (findMatches(rest, currentMatches)) return true;
+                }
+                
+                return false;
+            };
+
+            findMatches(pairs, []);
+            allPossibleMatches = bestMatches;
         } else {
             // Parejas fijas: players[0]+players[1] vs players[2]+players[3], etc.
             const prePairs = [];
@@ -66,27 +106,33 @@ const Engine = {
     },
 
     generateAmericanoNextRound(state) {
-        if (state.currentMatchIndex >= state.allPossibleMatches.length) {
+        if (!state.allPossibleMatches || state.allPossibleMatches.length === 0) {
             state.allCombinationsDone = true;
             return [];
         }
 
         const matches = [];
         const playersThisRound = new Set();
-        let idx = state.currentMatchIndex;
+        let i = 0;
+        
+        if (!state.currentRoundNumber) state.currentRoundNumber = 0;
+        state.currentRoundNumber++;
 
-        while (matches.length < state.courtCount && idx < state.allPossibleMatches.length) {
-            const m = state.allPossibleMatches[idx];
+        while (matches.length < state.courtCount && i < state.allPossibleMatches.length) {
+            const m = state.allPossibleMatches[i];
             const allFree = [...m.team1, ...m.team2].every(id => !playersThisRound.has(id));
             if (allFree) {
-                matches.push(this.createMatchObj(state, m.team1, m.team2, matches.length));
+                const matchObj = this.createMatchObj(state, m.team1, m.team2, matches.length);
+                matchObj.round = state.currentRoundNumber;
+                matches.push(matchObj);
                 [...m.team1, ...m.team2].forEach(id => playersThisRound.add(id));
+                state.allPossibleMatches.splice(i, 1);
+            } else {
+                i++;
             }
-            idx++;
         }
 
-        state.currentMatchIndex = idx;
-        if (idx >= state.allPossibleMatches.length) {
+        if (state.allPossibleMatches.length === 0) {
             state.allCombinationsDone = true;
         }
         return matches;
@@ -122,28 +168,33 @@ const Engine = {
     },
 
     generateRobinNextRound(state) {
-        if (state.currentMatchIndex >= state.allPossibleMatches.length) {
+        if (!state.allPossibleMatches || state.allPossibleMatches.length === 0) {
             state.allCombinationsDone = true;
             return [];
         }
 
         const matches = [];
         const teamsThisRound = new Set();
-        let idx = state.currentMatchIndex;
+        let i = 0;
 
-        while (matches.length < state.courtCount && idx < state.allPossibleMatches.length) {
-            const m = state.allPossibleMatches[idx];
-            // Usar copias para el sort y no mutar el array original
+        if (!state.currentRoundNumber) state.currentRoundNumber = 0;
+        state.currentRoundNumber++;
+
+        while (matches.length < state.courtCount && i < state.allPossibleMatches.length) {
+            const m = state.allPossibleMatches[i];
             const k1 = [...m.team1].sort().join(','), k2 = [...m.team2].sort().join(',');
             if (!teamsThisRound.has(k1) && !teamsThisRound.has(k2)) {
-                matches.push(this.createMatchObj(state, m.team1, m.team2, matches.length));
+                const matchObj = this.createMatchObj(state, m.team1, m.team2, matches.length);
+                matchObj.round = state.currentRoundNumber;
+                matches.push(matchObj);
                 teamsThisRound.add(k1); teamsThisRound.add(k2);
+                state.allPossibleMatches.splice(i, 1);
+            } else {
+                i++;
             }
-            idx++;
         }
 
-        state.currentMatchIndex = idx;
-        if (idx >= state.allPossibleMatches.length) state.allCombinationsDone = true;
+        if (state.allPossibleMatches.length === 0) state.allCombinationsDone = true;
         return matches;
     },
 
@@ -166,15 +217,21 @@ const Engine = {
     generateReyNextRound(state) {
         const sorted = [...state.players].sort((a, b) => b.score - a.score);
         const matches = [];
+        
+        if (!state.currentRoundNumber) state.currentRoundNumber = 0;
+        state.currentRoundNumber++;
+
         for (let i = 0; i < state.courtCount; i++) {
             const pIdx = i * 4;
             if (pIdx + 3 < sorted.length) {
-                matches.push(this.createMatchObj(
+                const matchObj = this.createMatchObj(
                     state,
                     [sorted[pIdx].id, sorted[pIdx + 1].id],
                     [sorted[pIdx + 2].id, sorted[pIdx + 3].id],
                     i
-                ));
+                );
+                matchObj.round = state.currentRoundNumber;
+                matches.push(matchObj);
             }
         }
         return matches;
@@ -182,7 +239,6 @@ const Engine = {
 
     /* -------- RESET COMBINACIONES -------- */
     resetAllCombinations(state) {
-        state.currentMatchIndex = 0;
         state.allCombinationsDone = false;
         this.shuffleArray(state.allPossibleMatches);
     },
