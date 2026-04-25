@@ -239,10 +239,12 @@ const app = {
             existing.push({
                 name: this.identity.name,
                 photo: this.identity.photo,
+                position: this.identity.position || 'drive',
                 playerId: this.identity.playerId || null
             });
         }
-        for (let i = 0; i < needed; i++) {
+        const rowsToCreate = Math.max(needed, existing.length);
+        for (let i = 0; i < rowsToCreate; i++) {
             this.addPlayerRow(existing[i] || null);
         }
     },
@@ -331,10 +333,10 @@ const app = {
             let code = this.inviteCode;
             if (code && this.state.activeSession?.code === code) {
                 // Actualizar sesión existente
-                await FirebaseDB.updateSession(code, { name, type, scoreType, location: locationStr, datetime, rules, matchTime });
+                await FirebaseDB.updateSession(code, { name, type, scoreType, location: locationStr, datetime, rules, matchTime, localPlayers });
             } else {
                 // Crear nueva sesión
-                code = await FirebaseDB.createSession({ name, type, scoreType, location: locationStr, datetime, rules, matchTime });
+                code = await FirebaseDB.createSession({ name, type, scoreType, location: locationStr, datetime, rules, matchTime, localPlayers });
                 this.inviteCode = code;
             }
 
@@ -373,7 +375,7 @@ const app = {
         FirebaseDB.watchSession(this.inviteCode, (session) => {
             if (!session) return;
             const firebasePlayers = session.players ? Object.values(session.players) : [];
-            const locals = this.state.activeSession?.localPlayers || [];
+            const locals = session.localPlayers || this.state.activeSession?.localPlayers || [];
             this.currentInvitePlayers = [...locals, ...firebasePlayers];
             this.updateInvitePlayerList(this.currentInvitePlayers);
         });
@@ -410,6 +412,14 @@ const app = {
         const s = this.state.activeSession;
         if (!s) return;
         this.showSetup(s.type);
+        
+        // Pre-poblar players list ANTES de updateCourtInputs para que existing los capture
+        const list = document.getElementById('players-list');
+        if (list && s.localPlayers) {
+            list.innerHTML = '';
+            s.localPlayers.forEach(p => this.addPlayerRow(p));
+        }
+
         document.getElementById('input-tournament-name').value = s.name;
         
         const courtsInput = document.getElementById('input-courts');
@@ -460,15 +470,22 @@ const app = {
             </div>`).join('');
     },
 
-    addManualToRoom() {
+    async addManualToRoom() {
         const pName = prompt('Nombre del jugador manual:');
         if (!pName || !pName.trim()) return;
         const s = this.state.activeSession;
         if (!s) return;
         if (!s.localPlayers) s.localPlayers = [];
-        s.localPlayers.push({ name: pName.trim(), photo: null });
+        
+        // Asignamos una posición por defecto, aunque en modo online no se pregunta, se asume drive para no romper
+        s.localPlayers.push({ name: pName.trim(), photo: null, position: 'drive' });
         Storage.save(this.state);
-        this.resumeInviteRoom(); // Forzar actualización de UI local + firebase
+        
+        // Sincronizar de inmediato con Firebase para que los espectadores lo vean
+        if (this.inviteCode) {
+            await FirebaseDB.updateSession(this.inviteCode, { ...s });
+        }
+        this.resumeInviteRoom();
     },
 
     async startSessionTournament() {
@@ -480,7 +497,7 @@ const app = {
 
         // Preparar todos los players para el engine
         const allPlayers = this.currentInvitePlayers.map((p, i) => ({
-            id: i, name: p.name, photo: p.photo || null,
+            id: i, name: p.name, photo: p.photo || null, position: p.position || 'drive',
             score: 0, wins: 0, matchesPlayed: 0,
             pointsAgainst: 0, totalSecondsOnCourt: 0, currentStreak: 0, bestStreak: 0
         }));
@@ -1448,7 +1465,9 @@ const app = {
                 </div>`;
 
             if (isOpen || !session.live) {
-                const players = session.players ? Object.values(session.players) : [];
+                const fPlayers = session.players ? Object.values(session.players) : [];
+                const lPlayers = session.localPlayers || [];
+                const players = [...lPlayers, ...fPlayers];
                 html += `
                     <h4 class="label-tag" style="margin-bottom:12px;">JUGADORES INSCRITOS (${players.length})</h4>
                     ${players.map(p => `

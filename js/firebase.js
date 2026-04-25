@@ -49,6 +49,7 @@ const FirebaseDB = {
             datetime: tournamentConfig.datetime || '',
             rules: tournamentConfig.rules || '',
             matchTime: tournamentConfig.matchTime || 15,
+            localPlayers: tournamentConfig.localPlayers || [],
             createdAt: Date.now(),
             status: 'open',
             players: {}
@@ -66,7 +67,8 @@ const FirebaseDB = {
             location: tournamentConfig.location || '',
             datetime: tournamentConfig.datetime || '',
             rules: tournamentConfig.rules || '',
-            matchTime: tournamentConfig.matchTime || 15
+            matchTime: tournamentConfig.matchTime || 15,
+            localPlayers: tournamentConfig.localPlayers || []
         });
     },
 
