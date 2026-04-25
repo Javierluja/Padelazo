@@ -325,7 +325,19 @@ const app = {
             matchTime: matchTime
         };
 
-        const localPlayers = this.collectPlayersFromForm();
+        let localPlayers = this.collectPlayersFromForm();
+        
+        // Garantizar que el organizador siempre esté en la lista si no se añadió manualmente
+        if (this.identity && !localPlayers.some(p => p.name === this.identity.name)) {
+            localPlayers.unshift({
+                name: this.identity.name,
+                photo: this.identity.photo,
+                position: this.identity.position || 'drive',
+                playerId: this.identity.playerId || null,
+                score: 0, wins: 0, matchesPlayed: 0, pointsAgainst: 0,
+                totalSecondsOnCourt: 0, currentStreak: 0, bestStreak: 0
+            });
+        }
 
         const btn = document.getElementById('btn-invite');
         if (btn) btn.innerText = 'Guardando sala...';
@@ -342,7 +354,7 @@ const app = {
 
             this.state.activeSession = {
                 code, name, type, scoreType, courts, courtNames, options,
-                localPlayers: localPlayers.map(p => ({ name: p.name, photo: p.photo, position: p.position }))
+                localPlayers: localPlayers.map(p => ({ ...p }))
             };
             Storage.save(this.state);
             
@@ -478,14 +490,20 @@ const app = {
         if (cnt) cnt.innerText = players.length;
         if (btn) btn.disabled = players.length < 4;
         if (!lst) return;
-        lst.innerHTML = players.map(p => `
+        lst.innerHTML = players.map(p => {
+            const isMe = this.identity && p.name === this.identity.name;
+            return `
             <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--glass-border);">
                 <div style="width:36px;height:36px;border-radius:10px;overflow:hidden;background:var(--secondary);">
                     ${p.photo ? `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;">` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;">${this.avatarSVG()}</div>`}
                 </div>
-                <div style="font-weight:700;">${p.name}</div>
+                <div style="flex:1;">
+                    <div style="font-weight:700;">${p.name} ${isMe ? '<span style="color:var(--primary);font-size:9px;margin-left:4px;">(TÚ)</span>' : ''}</div>
+                    ${isMe ? '<div style="font-size:9px;color:var(--primary);font-weight:800;text-transform:uppercase;">Organizador</div>' : ''}
+                </div>
                 <div style="margin-left:auto;color:var(--primary);font-size:11px;font-weight:800;">✓ INSCRITO</div>
-            </div>`).join('');
+            </div>`;
+        }).join('');
     },
 
     async addManualToRoom() {
