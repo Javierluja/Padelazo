@@ -11,6 +11,9 @@ const app = {
     pastRankMode: 'score',
     pastDetailIndex: null,
     inviteCode: null,
+    identity: null,
+    batchMode: false,
+    spectatorCode: null,
 
     /* ===================== INIT ===================== */
     init() {
@@ -18,8 +21,20 @@ const app = {
         const joinCode = urlParams.get('join');
         if (joinCode) { this.showJoinView(joinCode.toUpperCase()); return; }
 
+        // Cargar identidad primero
+        this.identity = Storage.loadIdentity();
         this.state = Storage.load();
         this.updateCourtInputs();
+
+        // Inyectar SVGs
+        const setupIcon = document.getElementById('identity-setup-icon');
+        if (setupIcon) setupIcon.innerHTML = this.padelSVG(56);
+
+        if (!this.identity) {
+            // Primera vez: pedir identidad
+            this.showView('identity');
+            return;
+        }
 
         if (this.state.currentTournament) {
             this.showView('dashboard');
@@ -39,7 +54,8 @@ const app = {
         if (viewId === 'home')      document.getElementById('nav-home')?.classList.add('active');
         if (viewId === 'dashboard') document.getElementById('nav-dash')?.classList.add('active');
         if (viewId === 'stats')     document.getElementById('nav-stats')?.classList.add('active');
-        if (viewId !== 'score')     this.stopTimer();
+        // NO detenemos el timer al navegar — sigue corriendo en segundo plano
+        // Solo se detiene al guardar resultado (submitScore) o cancelar explícitamente
         window.scrollTo(0, 0);
     },
 
@@ -80,6 +96,20 @@ const app = {
 
     /* ===================== HOME ===================== */
     renderHome() {
+        // Saludo de identidad
+        const greeting = document.getElementById('identity-greeting');
+        if (greeting && this.identity) {
+            greeting.classList.remove('hidden');
+            const nameEl = document.getElementById('greeting-name');
+            if (nameEl) nameEl.innerText = this.identity.name;
+            const avatarEl = document.getElementById('greeting-avatar');
+            if (avatarEl) {
+                avatarEl.innerHTML = this.identity.photo
+                    ? `<img src="${this.identity.photo}" style="width:100%;height:100%;object-fit:cover;">`
+                    : this.avatarSVG();
+            }
+        }
+
         const ac = document.getElementById('active-tournament-card');
         if (this.state.currentTournament) {
             const t = this.state.currentTournament;
@@ -463,6 +493,20 @@ const app = {
         const disp = document.getElementById('join-code-display');
         if (disp) disp.innerText = code;
         window._joinCode = code;
+
+        // Pre-llenar nombre y foto desde identidad guardada
+        if (this.identity) {
+            const nameInput = document.getElementById('join-player-name');
+            if (nameInput && !nameInput.value) nameInput.value = this.identity.name;
+            if (this.identity.photo) {
+                const label = document.getElementById('join-photo-label');
+                const img   = label?.querySelector('img');
+                const ph    = label?.querySelector('.avatar-placeholder');
+                if (label) label.dataset.photo = this.identity.photo;
+                if (img)   { img.src = this.identity.photo; img.classList.remove('hidden'); }
+                if (ph)    ph.style.display = 'none';
+            }
+        }
     },
 
     async submitJoin() {
@@ -473,6 +517,10 @@ const app = {
         if (btn) btn.innerText = 'Inscribiendo...';
         const result = await FirebaseDB.joinSession(window._joinCode, { name, photo });
         if (result.success) {
+            // Guardar / actualizar identidad del jugador
+            this.identity = { name, photo, deviceId: Storage.getDeviceId() };
+            Storage.saveIdentity(this.identity);
+
             document.getElementById('join-form')?.classList.add('hidden');
             document.getElementById('join-success')?.classList.remove('hidden');
             const sn = document.getElementById('join-success-name');
@@ -658,33 +706,44 @@ const app = {
     enterScore(matchId) {
         const m = this.state.currentTournament.matches.find(x => String(x.id) === String(matchId));
         if (!m) return;
+        const alreadyActive = this.activeMatch?.id === m.id && this.matchTimer !== null;
         this.activeMatch = m;
         if (!m.points) m.points = { t1: 0, t2: 0 };
         document.getElementById('score-court-label').innerText = m.court.toUpperCase();
         document.getElementById('manual-score-1').value = m.score1 !== null ? m.score1 : '';
         document.getElementById('manual-score-2').value = m.score2 !== null ? m.score2 : '';
         this.renderScoreboardPanel();
-        this.startTimer();
+        // Solo reiniciar timer si cambiamos de partido
+        if (!alreadyActive) this.startTimer();
         this.showView('score');
     },
 
     startTimer() {
         this.stopTimer();
-        this.matchSeconds = 0;
+        // Restaurar tiempo si es el mismo partido (recarga de página o volver al view)
+        const saved = Storage.loadTimer();
+        if (saved && saved.matchId === this.activeMatch?.id) {
+            this.matchSeconds = saved.elapsed || 0;
+        } else {
+            this.matchSeconds = 0;
+            Storage.clearTimer();
+        }
+
         const limitMinutes = this.state.currentTournament?.options?.matchTime || 15;
         const limitSeconds = limitMinutes * 60;
         this.timerAlertsPlayed = { min3: false, min1: false, end: false };
+        // Marcar alertas ya cumplidas
+        if (this.matchSeconds > limitSeconds - 180) this.timerAlertsPlayed.min3 = true;
+        if (this.matchSeconds > limitSeconds - 60)  this.timerAlertsPlayed.min1 = true;
 
         const updateClock = () => {
             const el = document.getElementById('match-timer');
             if (!el) return;
-            
             const remaining = limitSeconds - this.matchSeconds;
             if (remaining >= 0) {
                 const rm = String(Math.floor(remaining / 60)).padStart(2, '0');
                 const rs = String(remaining % 60).padStart(2, '0');
                 el.innerText = `${rm}:${rs}`;
-
                 if (remaining <= 180 && !this.timerAlertsPlayed.min3) {
                     this.timerAlertsPlayed.min3 = true;
                     if (this.matchSeconds > 0) this.playTickAlert(1);
@@ -708,10 +767,10 @@ const app = {
                 el.style.color = '#ff5252';
             }
         };
-
-        updateClock(); // mostrar tiempo inicial inmediatamente
+        updateClock();
         this.matchTimer = setInterval(() => {
             this.matchSeconds++;
+            Storage.saveTimer({ matchId: this.activeMatch?.id, elapsed: this.matchSeconds });
             updateClock();
         }, 1000);
     },
@@ -750,6 +809,7 @@ const app = {
 
     stopTimer() {
         if (this.matchTimer) { clearInterval(this.matchTimer); this.matchTimer = null; }
+        Storage.clearTimer();
     },
 
     renderScoreboardPanel() {
@@ -1056,6 +1116,199 @@ const app = {
         if (!secs) return '0m';
         const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60);
         return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    },
+
+    /* ===================== IDENTITY ===================== */
+    saveIdentityForm() {
+        const name = document.getElementById('identity-name-input')?.value?.trim();
+        if (!name) return alert('Escribe cómo te llaman en la cancha 🎾');
+        const photo = document.getElementById('identity-photo-label')?.dataset?.photo || null;
+        this.identity = { name, photo, deviceId: Storage.getDeviceId() };
+        Storage.saveIdentity(this.identity);
+        // Continuar al home normalmente
+        this.state = Storage.load();
+        this.updateCourtInputs();
+        if (this.state.currentTournament) {
+            this.showView('dashboard');
+            this.renderDashboard();
+        } else {
+            this.showView('home');
+            this.renderHome();
+        }
+    },
+
+    editIdentity() {
+        this.showView('identity');
+        // Pre-llenar con datos actuales
+        if (this.identity) {
+            const nameInput = document.getElementById('identity-name-input');
+            if (nameInput) nameInput.value = this.identity.name;
+            if (this.identity.photo) {
+                const label = document.getElementById('identity-photo-label');
+                const img = document.getElementById('identity-photo-img');
+                const ph = document.getElementById('identity-photo-placeholder');
+                if (label) label.dataset.photo = this.identity.photo;
+                if (img)   { img.src = this.identity.photo; img.classList.remove('hidden'); }
+                if (ph)    ph.classList.add('hidden');
+            }
+        }
+    },
+
+    handleIdentityPhoto(input) {
+        if (!input.files?.[0]) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const label = document.getElementById('identity-photo-label');
+            const img   = document.getElementById('identity-photo-img');
+            const ph    = document.getElementById('identity-photo-placeholder');
+            if (img)   { img.src = e.target.result; img.classList.remove('hidden'); }
+            if (ph)    ph.classList.add('hidden');
+            if (label) label.dataset.photo = e.target.result;
+        };
+        reader.readAsDataURL(input.files[0]);
+    },
+
+    /* ===================== JOIN BY CODE (desde home) ===================== */
+    joinByCode() {
+        const code = document.getElementById('home-join-code')?.value?.trim()?.toUpperCase();
+        if (!code || code.length < 3) return alert('Ingresa un código válido (mínimo 3 caracteres)');
+        this.showJoinView(code);
+    },
+
+    /* ===================== SPECTATOR VIEW ===================== */
+    showSpectatorView(code) {
+        if (!code) return;
+        this.spectatorCode = code;
+        this.showView('spectator');
+        const content = document.getElementById('spectator-content');
+        content.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-dim);">
+            ${this.padelSVG(40, '#333')}<br><br>Cargando estado...</div>`;
+
+        FirebaseDB.watchSession(code, (session) => {
+            if (!session) {
+                content.innerHTML = `<div class="card" style="text-align:center;padding:30px;">
+                    <div style="font-size:40px;margin-bottom:12px;">🎾</div>
+                    <p style="color:var(--text-dim);">El torneo ya fue iniciado o el código no existe.<br>¡Pregunta al organizador!</p>
+                </div>`;
+                return;
+            }
+            const players = session.players ? Object.values(session.players) : [];
+            const isOpen  = session.status === 'open';
+            content.innerHTML = `
+                <div class="card" style="text-align:center;margin-bottom:20px;border:1px solid ${isOpen ? 'var(--primary)' : 'var(--glass-border)'};">
+                    <h3 style="font-size:20px;margin-bottom:8px;">${session.name}</h3>
+                    <p style="font-size:12px;color:${isOpen ? 'var(--primary)' : 'var(--text-dim)'};">
+                        ${isOpen ? '⏳ Inscripciones abiertas' : '🎾 Torneo en curso / cerrado'}
+                    </p>
+                    <p style="font-size:11px;color:var(--text-dim);margin-top:8px;">
+                        Código: <strong style="color:var(--primary);letter-spacing:3px;">${code}</strong>
+                    </p>
+                </div>
+                <h4 class="label-tag" style="margin-bottom:12px;">JUGADORES INSCRITOS (${players.length})</h4>
+                ${players.map(p => `
+                    <div class="spectator-player">
+                        <div style="width:36px;height:36px;border-radius:10px;overflow:hidden;background:var(--secondary);flex-shrink:0;">
+                            ${p.photo ? `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;">` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;">${this.avatarSVG()}</div>`}
+                        </div>
+                        <div style="font-weight:700;">${p.name}</div>
+                        <div style="margin-left:auto;color:var(--primary);font-size:10px;font-weight:900;">✓</div>
+                    </div>`).join('')}
+                ${!players.length ? `<div style="text-align:center;padding:30px;color:var(--text-dim);">Aún no hay jugadores inscritos.</div>` : ''}
+            `;
+        });
+    },
+
+    leaveSpectatorView() {
+        if (this.spectatorCode) {
+            FirebaseDB.stopWatching(this.spectatorCode);
+            this.spectatorCode = null;
+        }
+        this.showView('home');
+        this.renderHome();
+    },
+
+    /* ===================== BATCH MODE ===================== */
+    setBatchMode(enabled) {
+        this.batchMode = enabled;
+        document.getElementById('mode-live-btn')?.classList.toggle('active', !enabled);
+        document.getElementById('mode-batch-btn')?.classList.toggle('active',  enabled);
+        document.getElementById('matches-content')?.classList.toggle('hidden',  enabled);
+        document.getElementById('batch-content')?.classList.toggle('hidden',   !enabled);
+        if (enabled) this.renderBatchMode();
+    },
+
+    renderBatchMode() {
+        const t = this.state.currentTournament;
+        if (!t) return;
+        const pending = t.matches.filter(m => m.score1 === null);
+        const container = document.getElementById('batch-content');
+        if (!container) return;
+
+        if (!pending.length) {
+            container.innerHTML = `
+                <div class="card" style="text-align:center;padding:30px;">
+                    <div style="font-size:32px;margin-bottom:12px;">✅</div>
+                    <p style="color:var(--text-dim);margin-bottom:20px;">Todos los partidos de esta ronda ya tienen resultado.</p>
+                    <button class="btn-primary" onclick="app.nextRound()">SIGUIENTE RONDA</button>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = pending.map(m => `
+            <div class="batch-match-card" data-match-id="${m.id}">
+                <div style="font-size:10px;font-weight:900;color:var(--primary);letter-spacing:1px;margin-bottom:8px;">${m.court.toUpperCase()}</div>
+                <div class="batch-score-row">
+                    <div style="flex:1;text-align:right;font-weight:800;font-size:13px;line-height:1.5;">${this.getPairDisplay(t, m.team1)}</div>
+                    <input type="number" class="batch-score-input batch-s1" placeholder="0" min="0">
+                    <span style="font-weight:900;color:var(--text-dim);font-size:18px;">–</span>
+                    <input type="number" class="batch-score-input batch-s2" placeholder="0" min="0">
+                    <div style="flex:1;font-weight:800;font-size:13px;line-height:1.5;">${this.getPairDisplay(t, m.team2)}</div>
+                </div>
+            </div>`).join('') + `
+        <button class="btn-primary" style="margin-top:16px;" onclick="app.saveBatchResults()">
+            💾 GUARDAR RONDA (${pending.length} partido${pending.length > 1 ? 's' : ''})
+        </button>`;
+    },
+
+    saveBatchResults() {
+        const t = this.state.currentTournament;
+        const cards = document.querySelectorAll('.batch-match-card');
+        let saved = 0;
+
+        cards.forEach(card => {
+            const matchId = card.dataset.matchId;
+            const s1 = parseInt(card.querySelector('.batch-s1')?.value) || 0;
+            const s2 = parseInt(card.querySelector('.batch-s2')?.value) || 0;
+            const m  = t.matches.find(x => String(x.id) === String(matchId));
+            if (!m || m.score1 !== null) return;
+
+            m.score1 = s1; m.score2 = s2; m.duration = 0;
+            const isDraw = s1 === s2;
+
+            const updateTeam = (ids, pFor, pAgainst, won) => {
+                ids.forEach(id => {
+                    const p = t.players.find(x => x.id === id);
+                    if (!p) return;
+                    p.score += pFor; p.matchesPlayed++;
+                    if (won) {
+                        p.wins++;
+                        p.currentStreak = (p.currentStreak || 0) + 1;
+                        if (p.currentStreak > (p.bestStreak || 0)) p.bestStreak = p.currentStreak;
+                    } else if (!isDraw) {
+                        p.currentStreak = 0;
+                    }
+                    p.pointsAgainst = (p.pointsAgainst || 0) + pAgainst;
+                });
+            };
+            updateTeam(m.team1, s1, s2, !isDraw && s1 > s2);
+            updateTeam(m.team2, s2, s1, !isDraw && s2 > s1);
+            saved++;
+        });
+
+        if (!saved) return alert('Ingresa al menos un resultado antes de guardar.');
+        Storage.save(this.state);
+        this.setBatchMode(false);
+        this.renderDashboard();
     }
 };
 

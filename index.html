@@ -25,6 +25,26 @@
 
     <!-- ===== HOME ===== -->
     <section id="view-home" class="view">
+
+        <!-- Saludo de identidad -->
+        <div id="identity-greeting" class="identity-greeting hidden" onclick="app.editIdentity()">
+            <div class="identity-avatar" id="greeting-avatar"></div>
+            <div style="flex:1;">
+                <div style="font-size:10px;font-weight:800;color:var(--text-dim);margin-bottom:2px;">HOLA 👋</div>
+                <div style="font-size:16px;font-weight:900;" id="greeting-name"></div>
+            </div>
+            <div style="font-size:12px;color:var(--text-dim);">✎ editar</div>
+        </div>
+
+        <!-- Unirse por código -->
+        <div class="card" style="margin-bottom:24px;">
+            <p class="label-tag" style="margin-bottom:12px;">🔗 UNIRME A UN TORNEO</p>
+            <div class="join-code-row">
+                <input type="text" id="home-join-code" placeholder="CÓDIGO (ej: AB3KZ)" maxlength="5">
+                <button class="btn-go" onclick="app.joinByCode()">→</button>
+            </div>
+        </div>
+
         <h2 class="section-label">Nueva Competencia</h2>
         <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:30px;">
             <div class="card card-row" onclick="app.showSetup('americano')">
@@ -123,7 +143,17 @@
             <button id="tab-matches" class="tab-btn active" onclick="app.setDashboardTab('matches')">EN VIVO</button>
             <button id="tab-ranking" class="tab-btn" onclick="app.setDashboardTab('ranking')">TABLA</button>
         </div>
-        <div id="dashboard-matches"><div id="matches-content"></div></div>
+        <div id="dashboard-matches">
+            <!-- Toggle modo ingreso -->
+            <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+                <div class="mode-toggle">
+                    <button id="mode-live-btn" class="mode-btn active" onclick="app.setBatchMode(false)">⚡ EN VIVO</button>
+                    <button id="mode-batch-btn" class="mode-btn" onclick="app.setBatchMode(true)">📋 RESULTADOS</button>
+                </div>
+            </div>
+            <div id="matches-content"></div>
+            <div id="batch-content" class="hidden"></div>
+        </div>
         <div id="dashboard-ranking" class="hidden">
             <div class="rank-tabs" id="ranking-subtabs">
                 <div class="rank-tab active" data-mode="score" onclick="app.setRankingMode('score')">PUNTOS</div>
@@ -249,7 +279,43 @@
             <h3 style="margin-bottom:8px;">¡Inscrito en</h3>
             <strong id="join-success-name" style="color:var(--primary);font-size:20px;">–</strong>
             <p style="font-size:13px;color:var(--text-dim);margin-top:16px;">Avísale al organizador que ya apareces en la sala.</p>
+            <button class="btn-outline" style="margin-top:20px;" onclick="app.showSpectatorView(window._joinCode)">
+                👁 VER ESTADO DEL TORNEO
+            </button>
         </div>
+    </section>
+
+    <!-- ===== IDENTITY SETUP (primera vez) ===== -->
+    <section id="view-identity" class="view hidden">
+        <div class="identity-setup-wrap">
+            <div id="identity-setup-icon"></div>
+            <h1 style="font-size:2rem;font-weight:900;color:var(--primary);margin:0;">PADELAZO</h1>
+            <p style="color:var(--text-dim);font-size:14px;margin:0;">¿Quién eres en la cancha?</p>
+
+            <label id="identity-photo-label" class="identity-photo-btn">
+                <div id="identity-photo-placeholder" style="font-size:36px;">📷</div>
+                <img id="identity-photo-img" class="hidden" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;border-radius:30px;">
+                <span>Tu foto</span>
+                <input type="file" accept="image/*" class="hidden" onchange="app.handleIdentityPhoto(this)">
+            </label>
+
+            <div style="width:100%;max-width:360px;">
+                <input type="text" id="identity-name-input" class="ghost-input"
+                    placeholder="¿Cómo te llaman?" autocomplete="nickname"
+                    style="font-size:22px;margin-bottom:16px;">
+                <button class="btn-primary" onclick="app.saveIdentityForm()">¡ASÍ ME LLAMAN! 🎾</button>
+            </div>
+            <p style="font-size:10px;color:var(--text-dim);margin:0;">Esta info se guarda en tu teléfono. Solo tú la ves.</p>
+        </div>
+    </section>
+
+    <!-- ===== ESPECTADOR (post-inscripción) ===== -->
+    <section id="view-spectator" class="view hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+            <h2 style="font-size:18px;">Estado del Torneo</h2>
+            <button onclick="app.leaveSpectatorView()" class="btn-ghost">← INICIO</button>
+        </div>
+        <div id="spectator-content"></div>
     </section>
 
     <!-- ===== GLOBAL STATS ===== -->
