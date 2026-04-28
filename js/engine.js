@@ -91,9 +91,9 @@ const Engine = {
             for (let i = 0; i < prePairs.length; i++)
                 for (let j = i + 1; j < prePairs.length; j++)
                     allPossibleMatches.push({ team1: prePairs[i], team2: prePairs[j] });
+            
+            this.shuffleArray(allPossibleMatches);
         }
-
-        this.shuffleArray(allPossibleMatches);
 
         return {
             id: Date.now(),
