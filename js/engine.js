@@ -25,57 +25,63 @@ const Engine = {
             });
 
             // Generar todos los pares posibles (1 Drive + 1 Revés)
-            let pairs = [];
+            const allPairs = [];
             for (let d of drives) {
                 for (let r of reveses) {
-                    pairs.push([d, r]);
+                    allPairs.push([d, r]);
                 }
             }
 
-            // Aleatorizar el orden para variedad
-            this.shuffleArray(pairs);
+            // Ordenamiento por factores para maximizar ocupación de canchas (Round-Robin Bipartito)
+            const n = Math.max(drives.length, reveses.length);
+            const orderedPairs = [];
+            const seenPairs = new Set();
+            const offsets = Array.from({length: n}, (_, i) => i);
+            this.shuffleArray(offsets);
+            
+            for (let k of offsets) {
+                const factor = [];
+                for (let i = 0; i < n; i++) {
+                    const d = drives[i];
+                    const r = reveses[(i + k) % reveses.length];
+                    const key = `${d}-${r}`;
+                    if (d !== undefined && r !== undefined && !seenPairs.has(key)) {
+                        factor.push([d, r]);
+                        seenPairs.add(key);
+                    }
+                }
+                this.shuffleArray(factor);
+                orderedPairs.push(...factor);
+            }
 
-            // Backtracking para encontrar un perfect matching de parejas (formar partidos)
-            const targetMatches = Math.floor(pairs.length / 2);
+            // Backtracking para formar partidos usando el orden denso por factores
+            const targetMatches = Math.floor(allPairs.length / 2);
             let bestMatches = [];
             let iterations = 0;
-            const MAX_ITER = 50000;
+            const MAX_ITER = 20000;
             
-            const findMatches = (currentPairs, currentMatches) => {
+            const solve = (currentPairs, currentMatches) => {
                 iterations++;
+                if (currentMatches.length > bestMatches.length) bestMatches = currentMatches;
+                if (currentMatches.length === targetMatches || iterations > MAX_ITER) return true;
+                if (currentPairs.length < 2) return false;
                 
-                // Si encontramos un mejor resultado, lo guardamos
-                if (currentMatches.length > bestMatches.length) {
-                    bestMatches = currentMatches;
-                }
-                
-                if (currentMatches.length === targetMatches) return true;
-                if (currentPairs.length < 2 || iterations > MAX_ITER) return false;
-                
-                // Tomar la primera pareja disponible
                 const p1 = currentPairs[0];
                 const rest = currentPairs.slice(1);
                 
-                // Buscar un oponente válido
-                for (let i = 0; i < rest.length; i++) {
+                // Intentamos emparejar p1 con alguien cercano en el mismo factor
+                for (let i = 0; i < Math.min(rest.length, 10); i++) {
                     const p2 = rest[i];
                     if (!p1.some(id => p2.includes(id))) {
-                        // Oponente válido encontrado, intentar este camino
                         const nextPairs = [...rest.slice(0, i), ...rest.slice(i + 1)];
-                        const newMatches = [...currentMatches, { team1: p1, team2: p2, round: 1 }];
-                        if (findMatches(nextPairs, newMatches)) return true;
+                        if (solve(nextPairs, [...currentMatches, { team1: p1, team2: p2 }])) return true;
                     }
                 }
-                
-                // Si no pudimos emparejar p1, y el límite permite que sobre una pareja (caso impar), probamos descartando p1.
-                if (targetMatches - currentMatches.length <= Math.floor(rest.length / 2)) {
-                    if (findMatches(rest, currentMatches)) return true;
-                }
-                
-                return false;
+                // Si no se puede emparejar p1, lo saltamos para no trabar el proceso
+                return solve(rest, currentMatches);
             };
 
-            findMatches(pairs, []);
+            solve(orderedPairs, []);
             allPossibleMatches = bestMatches;
         } else {
             // Parejas fijas: players[0]+players[1] vs players[2]+players[3], etc.
